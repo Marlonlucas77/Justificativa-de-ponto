@@ -1,4 +1,5 @@
-import streamlit as stimport streamlit as st datetime import datetime, time
+import streamlit as st
+from datetime import datetime, time
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
