@@ -20,27 +20,28 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CABEÇALHO PERSONALIZADO (LOGO + TEXTO)
+# CABEÇALHO DA INTERFACE (AJUSTADO FINO)
 # ==================================================
-col_logo, col_texto = st.columns([1, 7], gap="small")
+col_logo, col_texto = st.columns([1.2, 6.8], gap="small")
 
 with col_logo:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=110)
+        st.image(LOGO_PATH, width=130)
 
 with col_texto:
     st.markdown(
         """
-        <h2 style="
-            margin-bottom: 0;
+        <h3 style="
+            margin-bottom: 2px;
             white-space: nowrap;
+            font-weight: 600;
         ">
             FORMULÁRIO DE JUSTIFICATIVA DE PONTO
-        </h2>
+        </h3>
         <p style="
             color: gray;
-            margin-top: 6px;
-            font-size: 16px;
+            margin-top: 0;
+            font-size: 15px;
         ">
             Hospital Regional Sul
         </p>
@@ -86,7 +87,9 @@ if enviar:
         st.error("❌ Preencha todos os campos obrigatórios.")
         st.stop()
 
-    # Formatações
+    # -------------------------------
+    # FORMATAÇÕES
+    # -------------------------------
     data_fmt = data.strftime("%d/%m/%Y")
     hora_ent = hora_entrada.strftime("%H:%M")
     hora_sai = hora_saida.strftime("%H:%M")
@@ -102,35 +105,41 @@ if enviar:
     W, H = A4
     X = 2 * cm
 
-    # LOGO NO PDF (ESQUERDA)
+    # -------------------------------
+    # LOGO NO PDF (MAIOR À ESQUERDA)
+    # -------------------------------
     if os.path.exists(LOGO_PATH):
         c.drawImage(
             LOGO_PATH,
             X,
-            H - 3 * cm,
-            width=4 * cm,
+            H - 3.2 * cm,
+            width=4.5 * cm,
             preserveAspectRatio=True,
             mask="auto"
         )
 
-    # TÍTULO PDF EM UMA LINHA
-    c.setFont("Helvetica-Bold", 14)
+    # -------------------------------
+    # TÍTULO DO PDF (MENOR E ALINHADO)
+    # -------------------------------
+    c.setFont("Helvetica-Bold", 13)
     c.drawString(
-        X + 4.5 * cm,
-        H - 2.2 * cm,
+        X + 4.9 * cm,
+        H - 2.3 * cm,
         "FORMULÁRIO DE JUSTIFICATIVA DE PONTO"
     )
 
     c.setFont("Helvetica", 10)
     c.drawString(
-        X + 4.5 * cm,
+        X + 4.9 * cm,
         H - 2.9 * cm,
         "Hospital Regional Sul"
     )
 
-    c.line(X, H - 3.4 * cm, W - X, H - 3.4 * cm)
+    c.line(X, H - 3.5 * cm, W - X, H - 3.5 * cm)
 
-    # DADOS
+    # -------------------------------
+    # DADOS DO PLANTÃO
+    # -------------------------------
     y = H - 5 * cm
     c.setFont("Helvetica", 11)
     c.drawString(X, y, f"Nome: {nome}")
@@ -145,7 +154,9 @@ if enviar:
     y -= 1 * cm
     c.drawString(X, y, f"Duração: {horas}")
 
+    # -------------------------------
     # JUSTIFICATIVA
+    # -------------------------------
     y -= 1.5 * cm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(X, y, "Justificativa:")
@@ -158,14 +169,18 @@ if enviar:
         texto.textLine(linha)
     c.drawText(texto)
 
+    # -------------------------------
     # ASSINATURA
+    # -------------------------------
     c.setFont("Helvetica-Bold", 11)
     c.drawString(X, 5 * cm, "Assinatura:")
     c.setFont("Helvetica", 11)
     c.drawString(X + 4 * cm, 5 * cm, assinatura)
     c.line(X, 4.8 * cm, X + 14 * cm, 4.8 * cm)
 
+    # -------------------------------
     # RODAPÉ
+    # -------------------------------
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W / 2,
