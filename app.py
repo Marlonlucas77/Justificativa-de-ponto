@@ -18,9 +18,11 @@ import os
 # ==================================================
 # CONFIGURAÇÕES
 # ==================================================
-BASE_DIR = r"C:\Users\MarlonLucasRocha\OneDrive - Santa Casa de Misericórdia de Chavantes\PROJETO PYTHON"
-PASTA_BASE = os.path.join(BASE_DIR, "justificativas")
+BASE_DIR = "."
+PASTA_BASE = "temp"
 PLANILHA_PATH = os.path.join(PASTA_BASE, "registros.xlsx")
+
+os.makedirs(PASTA_BASE, exist_ok=True)
 LOGO_PATH = os.path.join(BASE_DIR, "imagens", "mitri_logo.png")
 
 SETORES = [
