@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
+#from streamlit_drawable_canvas import st_canvas
 from datetime import datetime, time
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
