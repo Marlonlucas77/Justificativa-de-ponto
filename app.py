@@ -136,21 +136,29 @@ PASTAS_SETOR = {
     "UTI": "1NusTpQs-Zv1c6W_gr5j5gNQhSN2dd",
 }
 
-creds = Credentials.from_service_account_info(
-    st.secrets["gdrive"],
-    scopes=["https://www.googleapis.com/auth/drive"]
-)
-
-drive_service = build("drive", "v3", credentials=creds)
-
 def upload_pdf_para_drive(caminho_pdf, nome_arquivo, setor):
-    pasta_id = PASTAS_SETOR.get(setor)
-    media = MediaFileUpload(caminho_pdf, mimetype="application/pdf")
-    drive_service.files().create(
-        body={"name": nome_arquivo, "parents": [pasta_id]},
-        media_body=media,
-        fields="id"
-    ).execute()
+    try:
+        creds = Credentials.from_service_account_info(
+            st.secrets["gdrive"],
+            scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        drive_service = build("drive", "v3", credentials=creds)
+
+        pasta_id = PASTAS_SETOR.get(setor)
+        if not pasta_id:
+            st.error(f"Setor '{setor}' não mapeado no Google Drive.")
+            return
+
+        media = MediaFileUpload(caminho_pdf, mimetype="application/pdf")
+        drive_service.files().create(
+            body={"name": nome_arquivo, "parents": [pasta_id]},
+            media_body=media,
+            fields="id"
+        ).execute()
+
+    except Exception as e:
+        st.error("❌ Erro ao enviar PDF para o Google Drive")
+        st.exception(e)
 
 # ==================================================
 # PROCESSAMENTO
