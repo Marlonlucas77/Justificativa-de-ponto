@@ -10,6 +10,9 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.oauth2.service_account import Credentials
 import os
 
 # ==================================================
@@ -89,22 +92,17 @@ def registrar_planilha(dados):
 
         wb.save(PLANILHA_PATH)
 
-    try:
-        wb = load_workbook(PLANILHA_PATH)
-        ws = wb.active
-        row = ws.max_row + 1
+    wb = load_workbook(PLANILHA_PATH)
+    ws = wb.active
+    row = ws.max_row + 1
 
-        for col, h in enumerate(headers, start=1):
-            ws.cell(row=row, column=col, value=dados[h]).border = Border(*(Side(style="thin"),)*4)
+    for col, h in enumerate(headers, start=1):
+        ws.cell(row=row, column=col, value=dados[h]).border = Border(*(Side(style="thin"),)*4)
 
-        for i in range(1, len(headers)+1):
-            ws.column_dimensions[get_column_letter(i)].width = 24
+    for i in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(i)].width = 24
 
-        wb.save(PLANILHA_PATH)
-
-    except PermissionError:
-        st.error("❌ Feche o Excel antes de gerar outro documento.")
-        st.stop()
+    wb.save(PLANILHA_PATH)
 
 # ==================================================
 # FORMULÁRIO
@@ -127,145 +125,89 @@ with st.form("formulario"):
     enviar = st.form_submit_button("✅ Gerar documento")
 
 # ==================================================
-# PROCESSAMENTO (TUDO AQUI DENTRO)
+# GOOGLE DRIVE - CONFIGURAÇÃO (ADICIONADO)
+# ==================================================
+PASTAS_SETOR = {
+    "Clínica Médica - PS": "1ng6xrCZZPcuasV9HwyMRTk8JZXHsoqJ",
+    "Diarista - Neurologista": "1B0xRIkghWujIeDUOQeVlstrplufr0a",
+    "Neurocirurgia": "1zTTrnf3Jvi-4tEGw7AqUbC0AUm-HZCRY",
+    "UTI": "1NusTpQs-Zv1c6W_gr5j5gNQhSN2dd",
+}
+
+creds = Credentials.from_service_account_info(
+    st.secrets["gdrive"],
+    scopes=["https://www.googleapis.com/auth/drive"]
+)
+
+drive_service = build("drive", "v3", credentials=creds)
+
+def upload_pdf_para_drive(caminho_pdf, nome_arquivo, setor):
+    pasta_id = PASTAS_SETOR.get(setor)
+    media = MediaFileUpload(caminho_pdf, mimetype="application/pdf")
+    drive_service.files().create(
+        body={"name": nome_arquivo, "parents": [pasta_id]},
+        media_body=media,
+        fields="id"
+    ).execute()
+
+# ==================================================
+# PROCESSAMENTO
 # ==================================================
 if enviar:
     if not nome or not crm or not motivo:
         st.error("Preencha todos os campos obrigatórios.")
         st.stop()
 
-    # ===============================
-    # FORMATOS
-    # ===============================
     data_fmt = data.strftime("%d/%m/%Y")
     data_arquivo = data.strftime("%d-%m-%Y")
-
     hora_ent = hora_entrada.strftime("%H:%M")
     hora_sai = hora_saida.strftime("%H:%M")
 
-    # Horas no formato HH:MM
     duracao = datetime.combine(data, hora_saida) - datetime.combine(data, hora_entrada)
-    horas_formatadas = (
-        f"{int(duracao.total_seconds() // 3600):02d}:"
-        f"{int((duracao.total_seconds() % 3600) // 60):02d}"
-    )
+    horas_formatadas = f"{duracao.seconds//3600:02d}:{(duracao.seconds%3600)//60:02d}"
 
-    # ===============================
-    # CAMINHO DO PDF (AQUI NASCE pdf_path)
-    # ===============================
     pasta_setor = os.path.join(PASTA_BASE, ocupacao)
+    os.makedirs(pasta_setor, exist_ok=True)
     pdf_path = os.path.join(pasta_setor, f"{nome} - {data_arquivo}.pdf")
 
-    # ===============================
-    # CRIA O PDF (NADA ANTES DISSO)
-    # ===============================
     c = canvas.Canvas(pdf_path, pagesize=A4)
-
     W, H = A4
     X = 2 * cm
-
-    from reportlab.lib import colors
     COR_PRINCIPAL = colors.HexColor("#030D0C")
-    COR_SUAVE = colors.HexColor("#E6F7F6")
-    COR_ROTULO = colors.HexColor("#4D4D4D")
 
-    # ===============================
-    # CABEÇALHO (SEU, INTACTO)
-    # ===============================
     if os.path.exists(LOGO_PATH):
-        lw = 6 * cm
-        c.drawImage(LOGO_PATH, (W - lw) / 2, H - 7 * cm, width=lw, preserveAspectRatio=True)
+        c.drawImage(LOGO_PATH, (W - 6 * cm) / 2, H - 7 * cm, width=6 * cm)
 
     c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(
-        W / 2,
-        H - 7.0 * cm,
-        "FORMULÁRIO DE JUSTIFICATIVA DO PONTO – HOSPITAL REGIONAL SUL"
-    )
-
+    c.drawCentredString(W / 2, H - 7 * cm,
+        "FORMULÁRIO DE JUSTIFICATIVA DO PONTO – HOSPITAL REGIONAL SUL")
     c.line(X, H - 8.2 * cm, W - X, H - 8.2 * cm)
 
-    # ===============================
-    # CORPO DO PDF (BONITO)
-    # ===============================
+    c.setFont("Helvetica", 10)
     y = H - 10 * cm
-    linha = 1 * cm
+    c.drawString(X, y, f"Nome: {nome}")
+    c.drawString(X, y - 1 * cm, f"CRM: {crm}")
+    c.drawString(X, y - 2 * cm, f"Setor: {ocupacao}")
+    c.drawString(X, y - 3 * cm, f"Data: {data_fmt}")
+    c.drawString(X, y - 4 * cm, f"Horário: {hora_ent} - {hora_sai}")
 
-    c.setStrokeColor(COR_PRINCIPAL)
-    c.setLineWidth(1.6)
-    c.rect(X - 0.5 * cm, y - 4.8 * cm, W - 2*X + 1 * cm, 5.6 * cm)
+    c.drawString(X, y - 6 * cm, "Justificativa:")
+    text = c.beginText(X, y - 7 * cm)
+    text.textLine(motivo)
+    c.drawText(text)
 
-    def campo(y_pos, rotulo, valor):
-        c.setFont("Helvetica-Bold", 10)
-        c.setFillColor(COR_ROTULO)
-        c.drawString(X, y_pos, rotulo)
-
-        c.setFont("Helvetica", 10)
-        c.setFillColor(colors.black)
-        c.drawString(X + 6 * cm, y_pos, valor)
-
-        return y_pos - linha
-
-    y = campo(y, "Nome:", nome)
-    y = campo(y, "CRM:", crm)
-    y = campo(y, "Setor:", ocupacao)
-    y = campo(y, "Data:", data_fmt)
-    y = campo(y, "Horário:", f"{hora_ent} - {hora_sai}")
-
-    # ===============================
-    # JUSTIFICATIVA
-    # ===============================
-    y -= 0.8 * cm
-    c.setFont("Helvetica-Bold", 11)
-    c.setFillColor(COR_PRINCIPAL)
-    c.drawString(X, y, "Justificativa:")
-
-    c.setFillColor(COR_SUAVE)
-    c.rect(X, y - 4.6 * cm, W - 2 * X, 4 * cm, fill=1, stroke=0)
-
-    c.setStrokeColor(COR_PRINCIPAL)
-    c.rect(X, y - 4.6 * cm, W - 2 * X, 4 * cm, fill=0, stroke=1)
-
-    texto = c.beginText(X + 0.4 * cm, y - 1 * cm)
-    texto.setFont("Helvetica", 10)
-    texto.setLeading(14)
-    texto.setFillColor(colors.black)
-
-    for linha_txt in motivo.split("\n"):
-        texto.textLine(linha_txt)
-
-    c.drawText(texto)
-
-    # ===============================
-    # ASSINATURA (RESTAURADA)
-    # ===============================
-    y_ass = 6 * cm
-    c.setFont("Helvetica-Bold", 11)
-    c.setFillColor(COR_PRINCIPAL)
-    c.drawString(X, y_ass + 1.8 * cm, "Assinatura:")
-
-    c.setFont("Helvetica", 11)
-    c.setFillColor(colors.black)
-    c.drawString(X, y_ass + 1.2 * cm, assinatura)
-
-    c.line(X, y_ass + 1.1 * cm, X + 14 * cm, y_ass + 1.1 * cm)
-
-    # ===============================
-    # RODAPÉ
-    # ===============================
-    c.setFont("Helvetica-Oblique", 8)
-    c.setFillColor(colors.grey)
-    c.drawCentredString(
-        W / 2,
-        1.3 * cm,
-        "Documento gerado eletronicamente por meio de sistema interno da instituição."
-    )
+    c.drawString(X, 6 * cm, "Assinatura:")
+    c.drawString(X + 3 * cm, 6 * cm, assinatura)
 
     c.save()
 
-    # ===============================
-    # PLANILHA
-    # ===============================
+    # ✅ UPLOAD PARA O GOOGLE DRIVE (ADICIONADO)
+    upload_pdf_para_drive(
+        pdf_path,
+        f"{nome} - {data_arquivo}.pdf",
+        ocupacao
+    )
+
     registrar_planilha({
         "Nome dos Médicos": nome,
         "Horas de Plantão": horas_formatadas,
@@ -276,5 +218,4 @@ if enviar:
         "Motivo": motivo
     })
 
-    st.success("✅ Documento gerado com sucesso!")
-    st.info(f"📄 PDF salvo em: {pdf_path}")
+    st.success("✅ Documento gerado e salvo no Google Drive com sucesso!")
