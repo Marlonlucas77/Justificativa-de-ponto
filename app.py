@@ -10,27 +10,37 @@ import os
 # CONFIGURAÇÃO DA PÁGINA
 # ==================================================
 st.set_page_config(
-    page_title="Justificativa de Ponto",
-    layout="centered",
-    page_icon="📝"
+    page_title="Formulário de Justificativa de Ponto",
+    layout="centered"
 )
 
 # ==================================================
-# CAMINHO DO LOGO (RELATIVO AO GITHUB)
+# CAMINHO DO LOGO
 # ==================================================
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CABEÇALHO DA INTERFACE
+# CABEÇALHO PERSONALIZADO
 # ==================================================
-if os.path.exists(LOGO_PATH):
-    st.image(LOGO_PATH, width=120)
+col_logo, col_texto = st.columns([1, 6], gap="small")
 
-st.markdown("## 📄 Formulário de Justificativa de Ponto")
-st.markdown(
-    "<span style='color:gray'>Hospital Regional Sul</span>",
-    unsafe_allow_html=True
-)
+with col_logo:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=110)
+
+with col_texto:
+    st.markdown(
+        """
+        <h2 style="margin-bottom: 0;">
+            FORMULÁRIO DE JUSTIFICATIVA DE PONTO
+        </h2>
+        <p style="color: gray; margin-top: 4px;">
+            Hospital Regional Sul
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+
 st.markdown("---")
 
 # ==================================================
@@ -77,7 +87,7 @@ if enviar:
     hora_sai = hora_saida.strftime("%H:%M")
 
     duracao = datetime.combine(data, hora_saida) - datetime.combine(data, hora_entrada)
-    horas = f"{duracao.seconds//3600:02d}:{(duracao.seconds%3600)//60:02d}"
+    horas = f"{duracao.seconds // 3600:02d}:{(duracao.seconds % 3600) // 60):02d}"
 
     # -------------------------------
     # GERAR PDF EM MEMÓRIA
@@ -87,50 +97,36 @@ if enviar:
     W, H = A4
     X = 2 * cm
 
-    # -------------------------------
-    # LOGO NO PDF
-    # -------------------------------
+    # LOGO NO PDF (ESQUERDA)
     if os.path.exists(LOGO_PATH):
         c.drawImage(
             LOGO_PATH,
-            (W - 5 * cm) / 2,
+            X,
             H - 3 * cm,
-            width=5 * cm,
+            width=4 * cm,
             preserveAspectRatio=True,
             mask="auto"
         )
 
-    # -------------------------------
-    # ==================================================
-# CABEÇALHO PERSONALIZADO (SEM ÍCONE STREAMLIT)
-# ==================================================
-LOGO_PATH = "imagens/mitri_logo.png"
-
-col_esq, col_centro, col_dir = st.columns([1, 3, 1])
-
-with col_centro:
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=140)
-
-    st.markdown(
-        "<h2 style='text-align:center; margin-bottom:0;'>"
+    # TÍTULO PDF (AO LADO DO LOGO)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(
+        X + 4.5 * cm,
+        H - 2.2 * cm,
         "FORMULÁRIO DE JUSTIFICATIVA DE PONTO"
-        "</h2>",
-        unsafe_allow_html=True
     )
 
-    st.markdown(
-        "<p style='text-align:center; color:gray; margin-top:4px;'>"
+    c.setFont("Helvetica", 10)
+    c.drawString(
+        X + 4.5 * cm,
+        H - 2.9 * cm,
         "Hospital Regional Sul"
-        "</p>",
-        unsafe_allow_html=True
     )
 
-    st.markdown("---")
-    # -------------------------------
+    c.line(X, H - 3.4 * cm, W - X, H - 3.4 * cm)
+
     # DADOS
-    # -------------------------------
-    y = H - 6.5 * cm
+    y = H - 5 * cm
     c.setFont("Helvetica", 11)
     c.drawString(X, y, f"Nome: {nome}")
     y -= 1 * cm
@@ -144,9 +140,7 @@ with col_centro:
     y -= 1 * cm
     c.drawString(X, y, f"Duração: {horas}")
 
-    # -------------------------------
     # JUSTIFICATIVA
-    # -------------------------------
     y -= 1.5 * cm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(X, y, "Justificativa:")
@@ -159,18 +153,14 @@ with col_centro:
         texto.textLine(linha)
     c.drawText(texto)
 
-    # -------------------------------
     # ASSINATURA
-    # -------------------------------
     c.setFont("Helvetica-Bold", 11)
     c.drawString(X, 5 * cm, "Assinatura:")
     c.setFont("Helvetica", 11)
     c.drawString(X + 4 * cm, 5 * cm, assinatura)
     c.line(X, 4.8 * cm, X + 14 * cm, 4.8 * cm)
 
-    # -------------------------------
     # RODAPÉ
-    # -------------------------------
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W / 2,
@@ -181,9 +171,7 @@ with col_centro:
     c.save()
     buffer.seek(0)
 
-    # -------------------------------
     # DOWNLOAD
-    # -------------------------------
     nome_arquivo = f"Justificativa_{nome.replace(' ', '_')}_{data.strftime('%Y%m%d')}.pdf"
 
     st.success("✅ PDF gerado com sucesso!")
