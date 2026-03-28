@@ -17,26 +17,22 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CABEÇALHO DA INTERFACE
+# CABEÇALHO DO APLICATIVO (LOGO CENTRALIZADO)
 # ==================================================
-col_logo, col_texto = st.columns([1.2, 6.8], gap="small")
+if os.path.exists(LOGO_PATH):
+    st.image(LOGO_PATH, width=150)
 
-with col_logo:
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=130)
-
-with col_texto:
-    st.markdown(
-        """
-        <h3 style="margin-bottom:2px; white-space:nowrap; font-weight:600;">
-            FORMULÁRIO DE JUSTIFICATIVA DE PONTO
-        </h3>
-        <p style="color:gray; margin-top:0; font-size:15px;">
-            Hospital Regional Sul
-        </p>
-        """,
-        unsafe_allow_html=True
-    )
+st.markdown(
+    """
+    <h3 style="text-align:center; margin-bottom:4px;">
+        FORMULÁRIO DE JUSTIFICATIVA DE PONTO
+    </h3>
+    <p style="text-align:center; color:gray; margin-top:0;">
+        Hospital Regional Sul
+    </p>
+    """,
+    unsafe_allow_html=True
+)
 
 st.markdown("---")
 
@@ -64,7 +60,7 @@ with st.form("formulario"):
     enviar = st.form_submit_button("✅ Gerar PDF")
 
 # ==================================================
-# PROCESSAMENTO
+# PROCESSAMENTO E PDF
 # ==================================================
 if enviar:
     if not nome or not crm or not motivo or not assinatura:
@@ -81,66 +77,88 @@ if enviar:
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
-    X = 2 * cm
-    y = H - 2.5 * cm
 
-    # LOGO PDF
+    y = H - 2 * cm
+
+    # -------------------------------
+    # LOGO PDF CENTRALIZADO
+    # -------------------------------
     if os.path.exists(LOGO_PATH):
-        c.drawImage(LOGO_PATH, X, y, width=4.5 * cm, preserveAspectRatio=True, mask="auto")
+        c.drawImage(
+            LOGO_PATH,
+            (W - 5 * cm) / 2,
+            y,
+            width=5 * cm,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
 
+    # -------------------------------
     # TÍTULO PDF
+    # -------------------------------
+    y -= 2.2 * cm
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(X + 5 * cm, y + 1.5 * cm,
-                 "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
+    c.drawCentredString(
+        W / 2,
+        y,
+        "FORMULÁRIO DE JUSTIFICATIVA DE PONTO"
+    )
+
+    y -= 0.8 * cm
     c.setFont("Helvetica", 10)
-    c.drawString(X + 5 * cm, y + 0.8 * cm,
-                 "Hospital Regional Sul")
+    c.drawCentredString(
+        W / 2,
+        y,
+        "Hospital Regional Sul"
+    )
 
-    y -= 1.5 * cm
-    c.line(X, y, W - X, y)
+    y -= 0.6 * cm
+    c.line(2 * cm, y, W - 2 * cm, y)
 
+    # -------------------------------
+    # DADOS
+    # -------------------------------
     y -= 1.2 * cm
     c.setFont("Helvetica", 11)
-
-    # CAMPOS (UM POR LINHA)
-    c.drawString(X, y, f"Nome: {nome}")
+    c.drawString(2 * cm, y, f"Nome: {nome}")
     y -= 0.9 * cm
-
-    c.drawString(X, y, f"CRM: {crm}")
+    c.drawString(2 * cm, y, f"CRM: {crm}")
     y -= 0.9 * cm
-
-    c.drawString(X, y, f"Setor: {setor}")
+    c.drawString(2 * cm, y, f"Setor: {setor}")
     y -= 0.9 * cm
-
-    c.drawString(X, y, f"Data do plantão: {data_fmt}")
+    c.drawString(2 * cm, y, f"Data do plantão: {data_fmt}")
     y -= 0.9 * cm
-
-    c.drawString(X, y, f"Horário: {hora_ent} - {hora_sai}")
+    c.drawString(2 * cm, y, f"Horário: {hora_ent} - {hora_sai}")
     y -= 0.9 * cm
+    c.drawString(2 * cm, y, f"Duração: {horas}")
 
-    c.drawString(X, y, f"Duração: {horas}")
-    y -= 1.2 * cm
-
+    # -------------------------------
     # JUSTIFICATIVA
+    # -------------------------------
+    y -= 1.3 * cm
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(X, y, "Justificativa:")
+    c.drawString(2 * cm, y, "Justificativa:")
     y -= 0.8 * cm
 
     c.setFont("Helvetica", 11)
-    texto = c.beginText(X, y)
+    texto = c.beginText(2 * cm, y)
     texto.setLeading(14)
     for linha in motivo.split("\n"):
         texto.textLine(linha)
     c.drawText(texto)
 
+    # -------------------------------
     # ASSINATURA
+    # -------------------------------
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(X, 5 * cm, "Assinatura:")
+    c.drawString(2 * cm, 5 * cm, "Assinatura:")
     c.setFont("Helvetica", 11)
-    c.drawString(X + 4 * cm, 5 * cm, assinatura)
-    c.line(X, 4.8 * cm, X + 14 * cm, 4.8 * cm)
+    c.drawString(6 * cm, 5 * cm, assinatura)
+    c.line(2 * cm, 4.8 * cm, W - 2 * cm, 4.8 * cm)
 
+    # -------------------------------
     # RODAPÉ
+    # -------------------------------
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W / 2,
