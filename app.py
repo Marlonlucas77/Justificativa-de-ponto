@@ -87,7 +87,7 @@ if enviar:
     hora_sai = hora_saida.strftime("%H:%M")
 
     duracao = datetime.combine(data, hora_saida) - datetime.combine(data, hora_entrada)
-    horas = f"{duracao.seconds // 3600:02d}:{(duracao.seconds % 3600) // 60):02d}"
+    horas = f"{duracao.seconds // 3600:02d}:{(duracao.seconds % 3600) // 60:02d}"
 
     # -------------------------------
     # GERAR PDF EM MEMÓRIA
