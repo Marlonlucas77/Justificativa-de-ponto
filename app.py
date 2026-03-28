@@ -20,9 +20,9 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CABEÇALHO PERSONALIZADO
+# CABEÇALHO PERSONALIZADO (LOGO + TEXTO)
 # ==================================================
-col_logo, col_texto = st.columns([1, 6], gap="small")
+col_logo, col_texto = st.columns([1, 7], gap="small")
 
 with col_logo:
     if os.path.exists(LOGO_PATH):
@@ -31,10 +31,17 @@ with col_logo:
 with col_texto:
     st.markdown(
         """
-        <h2 style="margin-bottom: 0;">
+        <h2 style="
+            margin-bottom: 0;
+            white-space: nowrap;
+        ">
             FORMULÁRIO DE JUSTIFICATIVA DE PONTO
         </h2>
-        <p style="color: gray; margin-top: 4px;">
+        <p style="
+            color: gray;
+            margin-top: 6px;
+            font-size: 16px;
+        ">
             Hospital Regional Sul
         </p>
         """,
@@ -79,9 +86,7 @@ if enviar:
         st.error("❌ Preencha todos os campos obrigatórios.")
         st.stop()
 
-    # -------------------------------
-    # FORMATAÇÕES
-    # -------------------------------
+    # Formatações
     data_fmt = data.strftime("%d/%m/%Y")
     hora_ent = hora_entrada.strftime("%H:%M")
     hora_sai = hora_saida.strftime("%H:%M")
@@ -89,9 +94,9 @@ if enviar:
     duracao = datetime.combine(data, hora_saida) - datetime.combine(data, hora_entrada)
     horas = f"{duracao.seconds // 3600:02d}:{(duracao.seconds % 3600) // 60:02d}"
 
-    # -------------------------------
+    # ==================================================
     # GERAR PDF EM MEMÓRIA
-    # -------------------------------
+    # ==================================================
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
@@ -108,7 +113,7 @@ if enviar:
             mask="auto"
         )
 
-    # TÍTULO PDF (AO LADO DO LOGO)
+    # TÍTULO PDF EM UMA LINHA
     c.setFont("Helvetica-Bold", 14)
     c.drawString(
         X + 4.5 * cm,
@@ -171,7 +176,6 @@ if enviar:
     c.save()
     buffer.seek(0)
 
-    # DOWNLOAD
     nome_arquivo = f"Justificativa_{nome.replace(' ', '_')}_{data.strftime('%Y%m%d')}.pdf"
 
     st.success("✅ PDF gerado com sucesso!")
