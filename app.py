@@ -11,7 +11,8 @@ import os
 # ==================================================
 st.set_page_config(
     page_title="Justificativa de Ponto",
-    layout="centered"
+    layout="centered",
+    page_icon="📝"
 )
 
 # ==================================================
@@ -100,24 +101,32 @@ if enviar:
         )
 
     # -------------------------------
-    # CABEÇALHO PDF
-    # -------------------------------
-    c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(
-        W / 2,
-        H - 4 * cm,
-        "FORMULÁRIO DE JUSTIFICATIVA DO PONTO"
+    # ==================================================
+# CABEÇALHO PERSONALIZADO (SEM ÍCONE STREAMLIT)
+# ==================================================
+LOGO_PATH = "imagens/mitri_logo.png"
+
+col_esq, col_centro, col_dir = st.columns([1, 3, 1])
+
+with col_centro:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=140)
+
+    st.markdown(
+        "<h2 style='text-align:center; margin-bottom:0;'>"
+        "FORMULÁRIO DE JUSTIFICATIVA DE PONTO"
+        "</h2>",
+        unsafe_allow_html=True
     )
 
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(
-        W / 2,
-        H - 4.6 * cm,
+    st.markdown(
+        "<p style='text-align:center; color:gray; margin-top:4px;'>"
         "Hospital Regional Sul"
+        "</p>",
+        unsafe_allow_html=True
     )
 
-    c.line(X, H - 5 * cm, W - X, H - 5 * cm)
-
+    st.markdown("---")
     # -------------------------------
     # DADOS
     # -------------------------------
