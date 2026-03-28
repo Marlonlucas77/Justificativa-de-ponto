@@ -88,8 +88,8 @@ if enviar:
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
-    X = 1 * cm
-    y = H - 2 * cm
+    X = 5 * cm
+    y = H - 6 * cm
 
     if os.path.exists(LOGO_PATH):
         c.drawImage(
