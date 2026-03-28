@@ -17,22 +17,23 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CABEÇALHO DO APLICATIVO (LOGO CENTRALIZADO)
+# CABEÇALHO – TELA INICIAL (PROFISSIONAL)
 # ==================================================
-if os.path.exists(LOGO_PATH):
-    st.image(LOGO_PATH, width=150)
+with st.container():
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=160)
 
-st.markdown(
-    """
-    <h3 style="text-align:center; margin-bottom:4px;">
-        FORMULÁRIO DE JUSTIFICATIVA DE PONTO
-    </h3>
-    <p style="text-align:center; color:gray; margin-top:0;">
-        Hospital Regional Sul
-    </p>
-    """,
-    unsafe_allow_html=True
-)
+    st.markdown(
+        """
+        <h3 style="text-align:center; margin-bottom:4px; font-weight:600;">
+            FORMULÁRIO DE JUSTIFICATIVA DE PONTO
+        </h3>
+        <p style="text-align:center; color:gray; margin-top:0; font-size:15px;">
+            Hospital Regional Sul
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
 
 st.markdown("---")
 
@@ -48,10 +49,10 @@ with st.form("formulario"):
     )
     data = st.date_input("Data do Plantão *")
 
-    c1, c2 = st.columns(2)
-    with c1:
+    col1, col2 = st.columns(2)
+    with col1:
         hora_entrada = st.time_input("Horário de Entrada *", value=time(7, 0))
-    with c2:
+    with col2:
         hora_saida = st.time_input("Horário de Saída *", value=time(19, 0))
 
     motivo = st.text_area("Motivo da justificativa *", height=120)
@@ -64,7 +65,7 @@ with st.form("formulario"):
 # ==================================================
 if enviar:
     if not nome or not crm or not motivo or not assinatura:
-        st.error("Preencha todos os campos obrigatórios.")
+        st.error("❌ Preencha todos os campos obrigatórios.")
         st.stop()
 
     data_fmt = data.strftime("%d/%m/%Y")
@@ -77,12 +78,10 @@ if enviar:
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
-
+    X = 2 * cm
     y = H - 2 * cm
 
-    # -------------------------------
-    # LOGO PDF CENTRALIZADO
-    # -------------------------------
+    # LOGO CENTRALIZADO NO PDF
     if os.path.exists(LOGO_PATH):
         c.drawImage(
             LOGO_PATH,
@@ -93,10 +92,8 @@ if enviar:
             mask="auto"
         )
 
-    # -------------------------------
     # TÍTULO PDF
-    # -------------------------------
-    y -= 2.2 * cm
+    y -= 2.4 * cm
     c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(
         W / 2,
@@ -115,9 +112,7 @@ if enviar:
     y -= 0.6 * cm
     c.line(2 * cm, y, W - 2 * cm, y)
 
-    # -------------------------------
     # DADOS
-    # -------------------------------
     y -= 1.2 * cm
     c.setFont("Helvetica", 11)
     c.drawString(2 * cm, y, f"Nome: {nome}")
@@ -132,9 +127,7 @@ if enviar:
     y -= 0.9 * cm
     c.drawString(2 * cm, y, f"Duração: {horas}")
 
-    # -------------------------------
     # JUSTIFICATIVA
-    # -------------------------------
     y -= 1.3 * cm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(2 * cm, y, "Justificativa:")
@@ -147,18 +140,14 @@ if enviar:
         texto.textLine(linha)
     c.drawText(texto)
 
-    # -------------------------------
     # ASSINATURA
-    # -------------------------------
     c.setFont("Helvetica-Bold", 11)
     c.drawString(2 * cm, 5 * cm, "Assinatura:")
     c.setFont("Helvetica", 11)
     c.drawString(6 * cm, 5 * cm, assinatura)
     c.line(2 * cm, 4.8 * cm, W - 2 * cm, 4.8 * cm)
 
-    # -------------------------------
     # RODAPÉ
-    # -------------------------------
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W / 2,
