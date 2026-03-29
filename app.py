@@ -34,6 +34,7 @@ LOGO_PATH = "imagens/mitri_logo.png"
 
 @st.cache_data(show_spinner=False)
 def _cor_dominante_logo(path: str) -> str:
+    """Extrai a cor mais predominante (não branca/preta) do logo e retorna como hex."""
     try:
         from PIL import Image
         import colorsys
@@ -51,6 +52,7 @@ def _cor_dominante_logo(path: str) -> str:
             r, g, b, a = px[x, y]
             if a < 30:
                 continue
+            # ignora branco, cinza claro e preto
             mx = max(r, g, b)
             mn = min(r, g, b)
             if mx < 30 or (mx > 220 and mn > 200):
@@ -187,6 +189,14 @@ st.markdown(
             border-top: 1px solid {BORDER};
         }}
 
+        /* ── Dica abaixo do form ── */
+        .form-hint {{
+            font-size: 0.74rem;
+            color: {MUTED};
+            margin-top: 0.5rem;
+            text-align: center;
+        }}
+
         /* logo transparente */
         [data-testid="stImage"] img,
         [data-testid="stImage"] picture img {{
@@ -316,12 +326,15 @@ def _cabecalho_continua(c, W, H):
 
 def _rodape_pdf(c, W):
     emissao = datetime.now().strftime('%d/%m/%Y  %H:%M')
+    # Linha separadora
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.5)
     c.line(2 * cm, 1.55 * cm, W - 2 * cm, 1.55 * cm)
+    # Hospital – lado esquerdo
     c.setFont("Helvetica-Oblique", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(2 * cm, 1.1 * cm, "Hospital Regional Sul")
+    # Data de emissão – lado direito
     c.drawRightString(W - 2 * cm, 1.1 * cm, f"Emitido em {emissao}")
 
 
@@ -443,7 +456,8 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    logo_area_h = 3.8 * cm
+    logo_area_h = 3.8 * cm   # altura da área cinza com o logo
+    titulo_h    = 1.6 * cm   # espaço abaixo do logo para título e subtítulo
 
     # Área cinza clara para o logo
     c.setFillColor(colors.HexColor("#f1f5f9"))
@@ -459,7 +473,7 @@ if enviar:
     logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
-    # Título centralizado abaixo da área cinza
+    # Título centralizado abaixo da área cinza (fundo branco)
     titulo_y = H - logo_area_h - 0.7 * cm
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.HexColor(PRIMARY))
@@ -495,19 +509,23 @@ if enviar:
     y = _secao(y, "Dados do Plantão")
 
     campos = [
-        ("Médico",  nome,      True),
-        ("CRM",     crm,       False),
-        ("Setor",   setor,     True),
-        ("Data",    data_fmt,  False),
-        ("Entrada", hora_ent,  True),
-        ("Saída",   hora_sai,  False),
-        ("Duração", horas_dur, True),
+        ("Médico",   nome,                             True),
+        ("CRM",      crm,                              False),
+        ("Setor",    setor,                            True),
+        ("Data",     data_fmt,                         False),
+        ("Entrada",  hora_ent,                         True),
+        ("Saída",    hora_sai,                         False),
+        ("Duração",  horas_dur,                        True),
     ]
 
     label_col_w = 2.6 * cm
     value_x     = margem + label_col_w + 0.2 * cm
     row_h       = 0.68 * cm
     line_extra  = 0.38 * cm
+
+    # Grade 2 colunas para campos simples
+    grid = [f for f in campos]
+    col_w = (W - 2 * margem - 0.5 * cm) / 2
 
     def _campo_linha(cy, titulo_c, valor_c, shade):
         linhas_v = quebrar_texto(str(valor_c), limite=34)
@@ -570,7 +588,7 @@ if enviar:
     y = _nova_pagina(c, W, H, margem, y, min_y + 4.5 * cm)
     y = _secao(y, "Assinatura do Médico")
 
-    sig_h    = 2.4 * cm
+    sig_h    = 3.8 * cm
     sig_left = margem
     sig_w    = W - 2 * margem
 
@@ -584,19 +602,36 @@ if enviar:
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
 
-    cx = W / 2
+    tx      = sig_left + 0.55 * cm
+    tx_end  = sig_left + sig_w - 0.45 * cm
 
-    # Linha 1: ASSINATURA: [nome] - CRM [crm]
-    linha1 = f"ASSINATURA: {assinatura.upper()} - CRM {crm.upper()}"
-    c.setFont("Helvetica-Bold", 10.5)
+    # Nome em destaque
+    c.setFont("Helvetica-Bold", 11)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, y - 0.78 * cm, linha1)
+    c.drawString(tx, y - 0.60 * cm, assinatura)
 
-    # Linha 2: horário da assinatura
-    horario_ass = datetime.now().strftime("%d/%m/%Y  %H:%M")
-    c.setFont("Helvetica", 9)
+    # CRM abaixo do nome
+    c.setFont("Helvetica", 8.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 1.42 * cm, horario_ass)
+    c.drawString(tx, y - 1.05 * cm, f"CRM: {crm}")
+
+    # Linha pontilhada de assinatura
+    linha_y = y - 2.45 * cm
+    c.setStrokeColor(colors.HexColor(LOGO_COLOR))
+    c.setLineWidth(0.8)
+    c.setDash([3, 4])
+    c.line(tx, linha_y, tx_end, linha_y)
+    c.setDash([])   # restaura linha sólida
+
+    # Label "Assinatura" abaixo da linha
+    c.setFont("Helvetica", 7)
+    c.setFillColor(colors.HexColor(SECTION))
+    c.drawString(tx, linha_y - 0.35 * cm, "Assinatura")
+
+    # Data do plantão alinhada à direita
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawRightString(tx_end, linha_y - 0.35 * cm, data_fmt)
 
     # ─────────────────────────────────────────────
     # RODAPÉ
