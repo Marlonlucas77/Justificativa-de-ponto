@@ -422,13 +422,13 @@ with st.container(border=True):
                     color: {MUTED};
                     line-height: 1.5;
                 ">
-                    O nome digitado será registrado como assinatura eletrônica no PDF.
+                    O nome digitado será registrado como assinatura eletrônica no Relatório.
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-        enviar = st.form_submit_button("⬇  Gerar PDF", use_container_width=True)
+        enviar = st.form_submit_button("⬇  Enviar relatório", use_container_width=True)
 
 st.markdown(
     '<p class="app-foot">Em caso de dúvidas, contate a administração · Hospital Regional Sul</p>',
@@ -475,7 +475,7 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    logo_area_h = 3.8 * cm
+    logo_area_h = 4.5 * cm
 
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
