@@ -78,10 +78,9 @@ st.markdown(
             gap: 1.4rem;
             margin-bottom: 1.4rem;
             padding: 1.4rem 1.8rem;
-            background: linear-gradient(160deg, #e8f5e9 0%, #f1f8e9 50%, #e0f2f1 100%);
+            background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
             border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(0,77,64,.12);
-            border: 1.5px solid #c8e6c9;
+            box-shadow: 0 6px 20px rgba(15,41,66,.26);
         }}
         .app-header-logo {{
             display: flex;
@@ -92,7 +91,7 @@ st.markdown(
         .app-header-divider {{
             width: 1.5px;
             height: 64px;
-            background: rgba(0,77,64,.18);
+            background: rgba(255,255,255,.22);
             flex-shrink: 0;
         }}
         .app-header-text {{
@@ -103,7 +102,7 @@ st.markdown(
         .app-header-text h1 {{
             font-size: 1.5rem !important;
             font-weight: 800 !important;
-            color: #1b5e20 !important;
+            color: #fff !important;
             margin: 0 !important;
             letter-spacing: -0.025em;
             line-height: 1.15;
@@ -112,7 +111,7 @@ st.markdown(
             margin: 0 !important;
             font-size: 0.85rem;
             font-weight: 400;
-            color: #4caf50;
+            color: rgba(255,255,255,.55);
             letter-spacing: 0.04em;
             text-transform: uppercase;
         }}
@@ -338,10 +337,10 @@ if _logo_png:
     _b64 = base64.b64encode(_logo_png).decode()
     logo_html = (
         f'<img src="data:image/png;base64,{_b64}" '
-        f'style="height:110px;width:auto;display:block;" />'
+        f'style="height:110px;width:auto;filter:brightness(0) invert(1);display:block;" />'
     )
 elif os.path.exists(LOGO_PATH):
-    logo_html = '<span style="color:rgba(0,77,64,.5);font-size:0.8rem;">Logo</span>'
+    logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
 st.markdown(
     f"""
     <div class="app-header">
