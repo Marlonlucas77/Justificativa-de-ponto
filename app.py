@@ -637,7 +637,7 @@ if enviar:
     # ─────────────────────────────────────────────────────────────
     arquivo_nome = nome_arquivo_seguro(nome, data_fmt)
     try:
-        with st.spinner("Enviando PDF para o Google Drive e registrando na planilha..."):
+        with st.spinner("Enviando relatório..."):
             resultado = enviar_para_google(
                 pdf_buffer=buffer,
                 nome_arquivo=arquivo_nome,
