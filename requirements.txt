@@ -1,4 +1,5 @@
 streamlit
 reportlab
-google-api-python-client
+Pillow
 google-auth
+google-api-python-client
