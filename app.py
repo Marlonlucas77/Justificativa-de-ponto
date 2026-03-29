@@ -186,26 +186,26 @@ def pdf_nova_pagina(c, W: float, H: float, margem: float, y: float, min_y: float
 # ==================================================
 # CABEÇALHO
 # ==================================================
-hero_cols = st.columns([1, 4], vertical_alignment="center")
-with hero_cols[0]:
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=88)
-    else:
-        st.caption("Logo não encontrada")
-with hero_cols[1]:
-    st.markdown(
-        f"""
-        <div class="app-hero">
-            <span class="tag">Recursos humanos</span>
-            <h1>Justificativa de ponto</h1>
-            <p>Hospital Regional Sul — preencha os campos, confira os dados e gere o PDF para registro no ponto.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+st.markdown(
+    f"""
+    <div class="app-hero">
+        <span class="tag">Recursos humanos</span>
+        <h1>Justificativa de ponto</h1>
+        <p>Hospital Regional Sul — preencha os campos, confira os dados e gere o PDF para registro no ponto.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.container(border=True):
     with st.form("formulario"):
+        _pad_l, _logo, _pad_r = st.columns([1, 2, 1])
+        with _logo:
+            if os.path.exists(LOGO_PATH):
+                st.image(LOGO_PATH, width=160)
+            else:
+                st.caption("Logo não encontrada em imagens/mitri_logo.png")
+
         st.markdown('<p class="form-section">Identificação</p>', unsafe_allow_html=True)
         r1c1, r1c2 = st.columns(2)
         with r1c1:
