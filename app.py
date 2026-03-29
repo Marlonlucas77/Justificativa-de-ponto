@@ -18,55 +18,59 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CSS PROFISSIONAL
+# CSS LIMPO E PROFISSIONAL
 # ==================================================
 st.markdown("""
 <style>
 
-/* FUNDO */
+/* FUNDO CLEAN */
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #020617);
+    background-color: #0f172a;
     color: #e5e7eb;
 }
 
 /* TÍTULO */
 h1 {
     text-align: center;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
 }
 
-/* FORM */
+/* FORM BOX */
 [data-testid="stForm"] {
-    background: rgba(15, 23, 42, 0.7);
-    padding: 25px;
-    border-radius: 12px;
-    border: 1px solid #1f2937;
+    background-color: #020617;
+    padding: 30px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
 }
 
 /* INPUTS */
 input, textarea, select {
     background-color: #020617 !important;
-    color: #e5e7eb !important;
+    color: #ffffff !important;
     border: 1px solid #334155 !important;
     border-radius: 6px !important;
 }
 
-/* LABELS */
+/* LABEL */
 label {
+    color: #cbd5f5 !important;
     font-size: 13px !important;
-    color: #9ca3af !important;
 }
 
 /* BOTÃO */
 .stButton > button {
     width: 100%;
-    background: linear-gradient(90deg, #2563eb, #1d4ed8);
+    background-color: #2563eb;
     color: white;
-    border-radius: 8px;
+    border-radius: 6px;
     height: 45px;
     font-weight: 600;
     border: none;
+}
+
+.stButton > button:hover {
+    background-color: #1d4ed8;
 }
 
 </style>
@@ -134,13 +138,17 @@ def quebrar_texto(texto, limite=90):
     return linhas
 
 # ==================================================
-# GERAR PDF
+# PDF
 # ==================================================
 if enviar:
 
     if not nome or not crm or not motivo or not assinatura:
         st.error("Preencha todos os campos obrigatórios.")
         st.stop()
+
+    # DEBUG DO LOGO (ajuda se não aparecer)
+    if not os.path.exists(LOGO_PATH):
+        st.warning("⚠️ Logo não encontrado no caminho: " + LOGO_PATH)
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -150,37 +158,36 @@ if enviar:
     y = H - 2 * cm
 
     # =========================================
-    # LOGO CENTRALIZADO
+    # LOGO CENTRALIZADO (AGORA FUNCIONA)
     # =========================================
     if os.path.exists(LOGO_PATH):
-        largura_logo = 5 * cm
-        c.drawImage(
-            LOGO_PATH,
-            (W - largura_logo) / 2,
-            y,
-            width=largura_logo,
-            preserveAspectRatio=True,
-            mask='auto'
-        )
+        try:
+            largura = 4 * cm
+            c.drawImage(
+                LOGO_PATH,
+                (W - largura) / 2,
+                y,
+                width=largura,
+                preserveAspectRatio=True,
+                mask='auto'
+            )
+        except:
+            st.error("Erro ao carregar o logo no PDF")
 
-    y -= 2.5 * cm
+    y -= 2.2 * cm
 
-    # =========================================
     # TÍTULO
-    # =========================================
     c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(W / 2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
+    c.drawCentredString(W/2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
 
     y -= 0.8 * cm
     c.setFont("Helvetica", 10)
-    c.drawCentredString(W / 2, y, "Hospital Regional Sul")
+    c.drawCentredString(W/2, y, "Hospital Regional Sul")
 
     y -= 0.5 * cm
     c.line(margem, y, W - margem, y)
 
-    # =========================================
     # DADOS
-    # =========================================
     data_fmt = data.strftime("%d/%m/%Y")
     hora_ent = hora_entrada.strftime("%H:%M")
     hora_sai = hora_saida.strftime("%H:%M")
@@ -189,7 +196,6 @@ if enviar:
     horas = f"{duracao.seconds//3600:02d}:{(duracao.seconds%3600)//60:02d}"
 
     y -= 1.2 * cm
-    c.setFont("Helvetica", 11)
 
     campos = [
         ("Nome", nome),
@@ -207,16 +213,14 @@ if enviar:
         c.drawString(margem + 4*cm, y, valor)
         y -= 0.8 * cm
 
-    # =========================================
-    # JUSTIFICATIVA (CAIXA)
-    # =========================================
+    # JUSTIFICATIVA
     y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(margem, y, "Justificativa:")
 
     y -= 0.5 * cm
 
-    linhas = quebrar_texto(motivo, 90)
+    linhas = quebrar_texto(motivo)
     altura_box = len(linhas) * 14 + 10
 
     c.rect(margem, y - altura_box, W - 2*margem, altura_box)
@@ -229,24 +233,19 @@ if enviar:
 
     c.drawText(texto)
 
-    # =========================================
     # ASSINATURA
-    # =========================================
     y -= altura_box + 2 * cm
 
     c.drawString(margem, y, "Assinatura:")
     c.line(margem, y - 5, W - margem, y - 5)
-
     c.drawString(margem + 5*cm, y, assinatura)
 
-    # =========================================
     # RODAPÉ
-    # =========================================
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W/2,
         2*cm,
-        f"Documento gerado eletronicamente em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        f"Documento gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     )
 
     c.save()
