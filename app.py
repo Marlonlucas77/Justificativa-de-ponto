@@ -38,44 +38,34 @@ st.markdown(
             padding-bottom: 2.5rem !important;
             max-width: 680px !important;
         }}
-        .app-hero {{
-            background: linear-gradient(180deg, #ffffff 0%, {SURFACE} 100%);
-            border: 1px solid {BORDER};
-            border-radius: 16px;
-            padding: 1.35rem 1.6rem 1.55rem 1.6rem;
+        .app-header-row {{
             margin-bottom: 1.35rem;
-            box-shadow: 0 1px 3px rgba(15, 41, 66, 0.06), 0 8px 24px rgba(15, 41, 66, 0.06);
-            text-align: center;
         }}
-        .app-hero .hero-text {{
-            max-width: 34rem;
-            margin: 0 auto;
+        .app-header-text {{
+            padding: 0.15rem 0 0 0.25rem;
         }}
-        .app-hero h1 {{
-            font-size: 1.4rem !important;
+        .app-header-text .app-header-label {{
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: {ACCENT};
+            margin: 0 0 0.35rem 0;
+        }}
+        .app-header-text h1 {{
+            font-size: 1.35rem !important;
             font-weight: 700 !important;
             color: {PRIMARY} !important;
-            margin: 0 0 0.35rem 0 !important;
-            letter-spacing: -0.03em;
+            margin: 0 0 0.4rem 0 !important;
+            letter-spacing: -0.02em;
             line-height: 1.2;
         }}
-        .app-hero p {{
+        .app-header-text .app-header-hospital {{
             margin: 0 !important;
+            font-size: 0.95rem;
+            font-weight: 500;
             color: {MUTED};
-            font-size: 0.92rem;
-            line-height: 1.45;
-        }}
-        .app-hero .tag {{
-            display: inline-block;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: {ACCENT};
-            background: rgba(30, 74, 110, 0.08);
-            padding: 0.2rem 0.55rem;
-            border-radius: 6px;
-            margin-bottom: 0.65rem;
+            line-height: 1.35;
         }}
         .form-section {{
             font-size: 0.72rem;
@@ -192,25 +182,24 @@ def pdf_nova_pagina(c, W: float, H: float, margem: float, y: float, min_y: float
 # ==================================================
 # CABEÇALHO
 # ==================================================
-_, hero_logo, _ = st.columns([1, 2, 1])
-with hero_logo:
+hdr_logo, hdr_txt = st.columns([1, 3], vertical_alignment="center")
+with hdr_logo:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=172)
+        st.image(LOGO_PATH, width=96)
     else:
         st.caption("Logo: imagens/mitri_logo.png")
-
-st.markdown(
-    f"""
-    <div class="app-hero">
-        <div class="hero-text">
-            <span class="tag">Recursos humanos</span>
+with hdr_txt:
+    st.markdown(
+        f"""
+        <div class="app-header-text">
+            <p class="app-header-label">Formulário</p>
             <h1>Justificativa de ponto</h1>
-            <p>Hospital Regional Sul — preencha os campos, confira os dados e gere o PDF para registro no ponto.</p>
+            <p class="app-header-hospital">Hospital Regional Sul</p>
         </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+        """,
+        unsafe_allow_html=True,
+    )
+st.caption("Preencha os campos e gere o PDF para registro no ponto.")
 
 with st.container(border=True):
     with st.form("formulario"):
@@ -277,7 +266,7 @@ if enviar:
         iw, ih = 1, 1
 
     strip_h = 0.42 * cm
-    header_band_h = 3.65 * cm
+    header_band_h = 3.85 * cm
     largura_logo = 4.6 * cm
     altura_logo = largura_logo * (ih / iw)
 
@@ -288,11 +277,11 @@ if enviar:
     c.setFillColor(colors.HexColor(PRIMARY))
     c.rect(0, H - strip_h, W, strip_h, fill=1, stroke=0)
 
-    # Área clara: logo centralizado no topo (horizontal e vertical na faixa)
+    # Área clara: logo centralizado em X; um pouco mais abaixo na faixa (alinha melhor ao título)
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, band_bot, W, header_band_h - strip_h, fill=1, stroke=0)
 
-    y_logo_bottom = (band_top + band_bot) / 2 - altura_logo / 2
+    y_logo_bottom = (band_top + band_bot) / 2 - altura_logo / 2 - 0.38 * cm
     x_logo = (W - largura_logo) / 2
     c.drawImage(
         LOGO_PATH,
@@ -303,8 +292,8 @@ if enviar:
         mask="auto",
     )
 
-    # Títulos logo abaixo da faixa do logo (alinha ao centro da página)
-    y = band_bot - 0.95 * cm
+    # Títulos um pouco mais abaixo da faixa (mais respiro junto ao logo)
+    y = band_bot - 1.12 * cm
     c.setFillColor(colors.HexColor(PRIMARY))
     c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(W / 2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
@@ -326,12 +315,12 @@ if enviar:
     td = duracao_plantao(data, hora_entrada, hora_saida)
     horas = fmt_duracao(td)
 
-    y -= 1.15 * cm
+    y -= 1.45 * cm
     c.setFont("Helvetica-Bold", 9)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(margem, y, "DADOS DO PLANTÃO")
     c.setFillColor(colors.black)
-    y -= 0.55 * cm
+    y -= 0.82 * cm
 
     label_w = 3.2 * cm
     vx = margem + label_w
@@ -362,56 +351,76 @@ if enviar:
             c.drawString(vx, y - 0.45 * cm - j * line_extra, lv)
         y -= row_h
 
-    y -= 0.35 * cm
+    y -= 1.05 * cm
     y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + 2 * cm)
 
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(margem, y, "JUSTIFICATIVA")
     c.setFillColor(colors.black)
-    y -= 0.5 * cm
+    y -= 0.62 * cm
 
     linhas = quebrar_texto(motivo.strip(), limite=86)
     line_height = 13
-    pad = 12
+    pad = 14
     altura_box = len(linhas) * line_height + pad
     y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + altura_box * 0.5)
 
     c.setStrokeColor(colors.HexColor(BORDER))
-    c.setLineWidth(0.8)
-    c.roundRect(margem, y - altura_box, W - 2 * margem, altura_box, 4, stroke=1, fill=0)
+    c.setLineWidth(0.75)
+    c.setFillColor(colors.HexColor("#fafbfc"))
+    c.roundRect(margem, y - altura_box, W - 2 * margem, altura_box, 6, stroke=1, fill=1)
+    c.setFillColor(colors.black)
 
-    texto = c.beginText(margem + 8, y - 18)
+    texto = c.beginText(margem + 10, y - 20)
     texto.setFont("Helvetica", 10)
     texto.setLeading(line_height)
     for linha in linhas:
         texto.textLine(linha)
     c.drawText(texto)
 
-    y -= altura_box + 1.8 * cm
-    y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + 2.2 * cm)
+    y -= altura_box + 2.35 * cm
+    y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + 2.6 * cm)
 
-    sig_h = 2.0 * cm
+    sig_h = 2.45 * cm
+    sig_left = margem
+    sig_w = W - 2 * margem
     c.setFillColor(colors.HexColor("#f8fafc"))
-    c.setStrokeColor(colors.HexColor(BORDER))
-    c.setLineWidth(0.6)
-    c.roundRect(margem, y - sig_h, W - 2 * margem, sig_h, 5, stroke=1, fill=1)
+    c.setStrokeColor(colors.HexColor("#cbd5e1"))
+    c.setLineWidth(0.85)
+    c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 8, stroke=1, fill=1)
 
+    accent_x = sig_left + 0.35 * cm
+    c.setFillColor(colors.HexColor(ACCENT))
+    c.rect(accent_x, y - sig_h + 0.35 * cm, 0.12 * cm, sig_h - 0.7 * cm, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+
+    tx = sig_left + 0.65 * cm
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawString(margem + 0.4 * cm, y - 0.45 * cm, "Assinatura do médico")
-    c.setFont("Helvetica", 8)
+    c.drawString(tx, y - 0.48 * cm, "Assinatura do médico")
+    c.setFont("Helvetica-Oblique", 8)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(margem + 0.4 * cm, y - 0.85 * cm, "Nome completo conforme registro profissional")
+    c.drawString(tx, y - 0.88 * cm, "Nome completo conforme registro no CRM")
     c.setFillColor(colors.black)
-    linha_y = y - 1.45 * cm
-    c.setStrokeColor(colors.HexColor("#94a3b8"))
-    c.setLineWidth(0.5)
-    line_left = margem + 0.45 * cm
-    line_right = W - margem - 0.45 * cm
+
+    linha_y = y - 1.62 * cm
+    c.setStrokeColor(colors.HexColor(ACCENT))
+    c.setLineWidth(1.0)
+    line_left = tx
+    line_right = sig_left + sig_w - 0.45 * cm
     c.line(line_left, linha_y, line_right, linha_y)
-    c.setFont("Helvetica", 10)
-    c.drawString(line_left, linha_y + 0.22 * cm, assinatura)
+    c.setStrokeColor(colors.HexColor("#e2e8f0"))
+    c.setLineWidth(0.4)
+    c.line(line_left, linha_y - 0.12 * cm, line_right, linha_y - 0.12 * cm)
+
+    c.setFont("Helvetica-Bold", 10.5)
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.drawString(line_left, linha_y + 0.26 * cm, assinatura)
+
+    c.setFont("Helvetica", 7)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawString(line_left, linha_y - 0.42 * cm, "Assinatura / carimbo quando aplicável")
 
     c.setFont("Helvetica-Oblique", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
