@@ -464,7 +464,6 @@ if enviar:
     hora_sai  = hora_saida.strftime("%H:%M")
     td_dur    = duracao_plantao(data, hora_entrada, hora_saida)
     horas_dur = fmt_duracao(td_dur)
-    protocolo = datetime.now(_BRT).strftime("PROT-%Y%m%d-%H%M%S")
 
     buffer = BytesIO()
     c      = canvas.Canvas(buffer, pagesize=A4)
@@ -473,55 +472,52 @@ if enviar:
     min_y  = 2.2 * cm
 
     # ─────────────────────────────────────────────────────────────
-    # CABEÇALHO PDF  –  faixa azul escura + logo esquerda + texto
+    # CABEÇALHO PDF
+    # Painel BRANCO à esquerda → logo nítido com cores originais
+    # Painel AZUL à direita    → título branco
     # ─────────────────────────────────────────────────────────────
-    hdr_h = 4.6 * cm
+    hdr_h        = 4.8 * cm
+    logo_panel_w = 5.8 * cm   # largura do painel branco
 
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.rect(0, H - hdr_h, W, hdr_h, fill=1, stroke=0)
+    # painel esquerdo branco
+    c.setFillColor(colors.white)
+    c.rect(0, H - hdr_h, logo_panel_w, hdr_h, fill=1, stroke=0)
 
-    # linha accent na base do cabeçalho
+    # painel direito azul médio
+    c.setFillColor(colors.HexColor("#1e4a6e"))
+    c.rect(logo_panel_w, H - hdr_h, W - logo_panel_w, hdr_h, fill=1, stroke=0)
+
+    # faixa accent na base do cabeçalho
     c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(0, H - hdr_h - 0.22 * cm, W, 0.22 * cm, fill=1, stroke=0)
+    c.rect(0, H - hdr_h - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
 
-    # logo à esquerda
+    # logo centralizado no painel branco — cores originais, sem filtro
     _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
-    logo_w = 5.5 * cm
+    logo_w = 4.4 * cm
     logo_h = logo_w * (ih / iw)
-    logo_x = margem
+    logo_x = (logo_panel_w - logo_w) / 2
     logo_y = H - hdr_h + (hdr_h - logo_h) / 2
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h,
                 mask="auto", preserveAspectRatio=True)
 
-    # separador vertical
-    sep_x = margem + logo_w + 0.7 * cm
-    c.setStrokeColor(colors.Color(1, 1, 1, 0.22))
-    c.setLineWidth(0.8)
-    c.line(sep_x, H - hdr_h + 0.6 * cm, sep_x, H - 0.6 * cm)
+    # separador vertical sutil
+    c.setStrokeColor(colors.HexColor("#cbd5e1"))
+    c.setLineWidth(0.5)
+    c.line(logo_panel_w, H - hdr_h + 0.4 * cm, logo_panel_w, H - 0.4 * cm)
 
-    # título e subtítulo à direita do separador
-    txt_x = sep_x + 0.7 * cm
-    c.setFont("Helvetica-Bold", 17)
+    # textos no painel azul
+    txt_x = logo_panel_w + 0.95 * cm
+    c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.white)
-    c.drawString(txt_x, H - 1.85 * cm, "JUSTIFICATIVA DE PONTO")
+    c.drawString(txt_x, H - 2.0 * cm, "JUSTIFICATIVA DE PONTO")
 
     c.setFont("Helvetica", 10)
-    c.setFillColor(colors.Color(1, 1, 1, 0.65))
-    c.drawString(txt_x, H - 2.55 * cm, "Hospital Regional Sul")
+    c.setFillColor(colors.Color(1, 1, 1, 0.75))
+    c.drawString(txt_x, H - 2.85 * cm, "Hospital Regional Sul")
 
-    c.setFont("Helvetica", 8.5)
-    c.setFillColor(colors.Color(1, 1, 1, 0.50))
-    c.drawString(txt_x, H - 3.25 * cm, protocolo)
-
-    # data de emissão (canto direito superior)
-    emissao_hdr = datetime.now(_BRT).strftime("%d/%m/%Y")
-    c.setFont("Helvetica", 8)
-    c.setFillColor(colors.Color(1, 1, 1, 0.55))
-    c.drawRightString(W - margem, H - 1.5 * cm, emissao_hdr)
-
-    y = H - hdr_h - 0.22 * cm - 1.0 * cm
+    y = H - hdr_h - 0.20 * cm - 1.0 * cm   # início do conteúdo
 
     # ─────────────────────────────────────────────────────────────
     # HELPERS PDF
