@@ -456,38 +456,36 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    band_h  = 4.2 * cm   # área cinza clara (sem faixas no topo)
-    faixa_h = 1.05 * cm  # faixa escura inferior
+    logo_area_h = 3.8 * cm   # altura da área cinza com o logo
+    titulo_h    = 1.6 * cm   # espaço abaixo do logo para título e subtítulo
 
-    # Área cinza clara — ocupa do topo até band_h
+    # Área cinza clara para o logo
     c.setFillColor(colors.HexColor("#f1f5f9"))
-    c.rect(0, H - band_h, W, band_h, fill=1, stroke=0)
+    c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
 
     # Logo centralizado
     _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
-    logo_w = 5.0 * cm
+    logo_w = 4.8 * cm
     logo_h = logo_w * (ih / iw)
     logo_x = (W - logo_w) / 2
-    logo_y = H - band_h + (band_h - logo_h) / 2
+    logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
-    # Faixa escura logo abaixo da área cinza
-    faixa_y = H - band_h - faixa_h
+    # Título centralizado abaixo da área cinza (fundo branco)
+    titulo_y = H - logo_area_h - 0.7 * cm
+    c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.rect(0, faixa_y, W, faixa_h, fill=1, stroke=0)
+    c.drawCentredString(W / 2, titulo_y, "JUSTIFICATIVA DE PONTO")
 
-    texto_cy = faixa_y + faixa_h / 2 - 0.16 * cm
-    c.setFont("Helvetica-Bold", 10.5)
-    c.setFillColor(colors.white)
-    c.drawString(margem, texto_cy, "JUSTIFICATIVA DE PONTO")
-    c.setFont("Helvetica", 8.5)
-    c.setFillColor(colors.HexColor("#b0c4d8"))
-    c.drawRightString(W - margem, texto_cy, "Hospital Regional Sul")
+    subtitulo_y = titulo_y - 0.58 * cm
+    c.setFont("Helvetica", 9.5)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawCentredString(W / 2, subtitulo_y, "Hospital Regional Sul")
 
     # Linha divisória
-    y = faixa_y - 0.75 * cm
+    y = subtitulo_y - 0.7 * cm
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.8)
     c.line(margem, y, W - margem, y)
@@ -537,10 +535,10 @@ if enviar:
             c.setStrokeColor(colors.HexColor(BORDER))
             c.setLineWidth(0.4)
             c.rect(margem, cy - rh + 0.1 * cm, W - 2 * margem, rh, fill=1, stroke=0)
-        c.setFont("Helvetica-Bold", 9.5)
+        c.setFont("Helvetica-Bold", 11)
         c.setFillColor(colors.HexColor(PRIMARY))
         c.drawString(margem + 0.3 * cm, cy - 0.44 * cm, titulo_c)
-        c.setFont("Helvetica", 9.5)
+        c.setFont("Helvetica", 11)
         c.setFillColor(colors.black)
         for j, lv in enumerate(linhas_v):
             c.drawString(value_x, cy - 0.44 * cm - j * line_extra, lv)
@@ -557,8 +555,8 @@ if enviar:
     y = _nova_pagina(c, W, H, margem, y, min_y + 2.5 * cm)
     y = _secao(y, "Justificativa")
 
-    linhas_mot = quebrar_texto(motivo.strip(), limite=90)
-    line_h_mot = 13.5
+    linhas_mot = quebrar_texto(motivo.strip(), limite=86)
+    line_h_mot = 15
     pad_mot    = 18
     box_h      = len(linhas_mot) * line_h_mot + pad_mot * 2
 
@@ -574,7 +572,7 @@ if enviar:
     c.rect(margem, y - box_h, 0.18 * cm, box_h, fill=1, stroke=0)
 
     texto_obj = c.beginText(margem + 0.45 * cm, y - pad_mot)
-    texto_obj.setFont("Helvetica", 9.5)
+    texto_obj.setFont("Helvetica", 11)
     texto_obj.setLeading(line_h_mot)
     texto_obj.setFillColor(colors.HexColor("#1e293b"))
     for ln in linhas_mot:
