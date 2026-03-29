@@ -357,7 +357,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.caption("Preencha todos os campos obrigatórios (*) e clique em **Gerar PDF** para baixar o documento.")
+st.caption("Preencha todos os campos obrigatórios (*) e clique em **Enviar relatório** para realizar a justificativa.")
 
 # ==================================================
 # FORMULÁRIO
@@ -371,7 +371,7 @@ with st.container(border=True):
         with c1:
             nome = st.text_input("Nome do médico *", placeholder="Nome completo")
         with c2:
-            crm  = st.text_input("CRM *", placeholder="Ex.: 12345 / SP")
+            crm  = st.text_input("CRM *", placeholder="Ex.: 12345")
 
         # ── Dados do Plantão ───────────────────────
         st.markdown('<p class="form-section">Dados do Plantão</p>', unsafe_allow_html=True)
@@ -407,7 +407,7 @@ with st.container(border=True):
         with cf:
             assinatura = st.text_input(
                 "Nome para assinatura *",
-                placeholder="Conforme documento oficial / CRM",
+                placeholder="Conforme documento oficial",
             )
         with cg:
             st.markdown(
@@ -422,7 +422,7 @@ with st.container(border=True):
                     color: {MUTED};
                     line-height: 1.5;
                 ">
-                    O nome digitado será registrado como assinatura eletrônica no Relatório.
+                    O nome digitado será registrado como assinatura eletrônica no relatório.
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -475,7 +475,7 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    logo_area_h = 4.5 * cm
+    logo_area_h = 3.8 * cm
 
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
@@ -628,7 +628,7 @@ if enviar:
     c.save()
     buffer.seek(0)
 
-    st.success("PDF gerado com sucesso.")
+    st.success("Relatório enviado com sucesso.")
     st.download_button(
         label="⬇  Baixar PDF",
         data=buffer,
