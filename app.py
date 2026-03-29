@@ -1,96 +1,163 @@
-# (SEU CÓDIGO ORIGINAL MANTIDO — só alterei pontos necessários)
-
-# ... (mantive tudo igual até a parte do logo HTML)
-
-logo_html = ""
-    import base64
-    _b64 = base64.b64encode(_logo_png).decode()
-    # 🔥 LOGO MAIOR AQUI
-    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:110px;width:auto;filter:brightness(0) invert(1);display:block;" />'
-elif os.path.exists(LOGO_PATH):
-    logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
+import streamlit as st
+from datetime import datetime, time, timedelta
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from io import BytesIO
+import os
 
 # ==================================================
-# PDF
+# CONFIG
+# ==================================================
+st.set_page_config(
+    page_title="Justificativa de Ponto",
+    page_icon="📄",
+    layout="centered"
+)
+
+LOGO_PATH = "imagens/mitri_logo.png"
+
+# ==================================================
+# HEADER (LOGO + TEXTO)
+# ==================================================
+col1, col2 = st.columns([1, 4], vertical_alignment="center")
+
+with col1:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=120)  # 🔥 LOGO MAIOR
+
+with col2:
+    st.markdown("""
+    <h2 style="margin-bottom:5px;">Justificativa de Ponto</h2>
+    <p style="margin:0; color:gray;">Hospital Regional Sul</p>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# ==================================================
+# FORMULÁRIO
+# ==================================================
+with st.form("formulario"):
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        nome = st.text_input("Nome do médico *")
+        crm = st.text_input("CRM *")
+
+    with c2:
+        setor = st.selectbox(
+            "Setor *",
+            ["Clínica Médica - PS", "Diarista - Neurologista", "Neurocirurgia", "UTI"]
+        )
+        data = st.date_input("Data *")
+
+    c3, c4 = st.columns(2)
+
+    with c3:
+        entrada = st.time_input("Entrada", value=time(7, 0))
+
+    with c4:
+        saida = st.time_input("Saída", value=time(19, 0))
+
+    motivo = st.text_area("Motivo *", height=120)
+
+    assinatura = st.text_input("Nome para assinatura *")
+
+    enviar = st.form_submit_button("Gerar PDF")
+
+# ==================================================
+# FUNÇÕES
+# ==================================================
+def calcular_duracao(data, inicio, fim):
+    ini = datetime.combine(data, inicio)
+    f = datetime.combine(data, fim)
+    if f <= ini:
+        f += timedelta(days=1)
+    return f - ini
+
+def formatar_duracao(td):
+    h = td.seconds // 3600
+    m = (td.seconds % 3600) // 60
+    return f"{h:02d}:{m:02d}"
+
+def quebrar_texto(texto, limite=90):
+    palavras = texto.split()
+    linhas = []
+    linha = ""
+
+    for palavra in palavras:
+        if len(linha + palavra) < limite:
+            linha += palavra + " "
+        else:
+            linhas.append(linha)
+            linha = palavra + " "
+
+    linhas.append(linha)
+    return linhas
+
+# ==================================================
+# GERAR PDF
 # ==================================================
 if enviar:
-    erros = []
-    if not nome.strip():        erros.append("Nome do médico")
-    if not crm.strip():         erros.append("CRM")
-    if not motivo.strip():      erros.append("Motivo da justificativa")
-    if not assinatura.strip():  erros.append("Nome para assinatura")
 
-    if erros:
-        st.error(f"Campos obrigatórios não preenchidos: **{', '.join(erros)}**.")
+    if not nome or not crm or not motivo or not assinatura:
+        st.error("Preencha todos os campos obrigatórios.")
         st.stop()
 
     if not os.path.exists(LOGO_PATH):
-        st.error(f"Logo não encontrada em `{LOGO_PATH}`.")
+        st.error("Logo não encontrada na pasta imagens.")
         st.stop()
 
-    _logo_bytes = logo_transparente_png(LOGO_PATH)
-    if _logo_bytes is None:
-        with open(LOGO_PATH, "rb") as _lf:
-            _logo_bytes = _lf.read()
-
-    data_fmt  = data.strftime("%d/%m/%Y")
-    hora_ent  = hora_entrada.strftime("%H:%M")
-    hora_sai  = hora_saida.strftime("%H:%M")
-    td_dur    = duracao_plantao(data, hora_entrada, hora_saida)
-    horas_dur = fmt_duracao(td_dur)
-
     buffer = BytesIO()
-    c      = canvas.Canvas(buffer, pagesize=A4)
-    W, H   = A4
-    margem = 2.1 * cm
-    min_y  = 2.8 * cm
+    c = canvas.Canvas(buffer, pagesize=A4)
+    W, H = A4
+
+    margem = 2 * cm
 
     # =========================================
-    # CABEÇALHO PDF (FUNDO BRANCO)
+    # CABEÇALHO (FUNDO BRANCO)
     # =========================================
-    logo_area_h = 3.8 * cm
+    c.setFillColor(colors.white)
+    c.rect(0, 0, W, H, fill=1)
 
-    c.setFillColor(colors.white)  # 🔥 AGORA BRANCO
-    c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
+    # LOGO CENTRAL
+    largura_logo = 5 * cm
+    c.drawImage(
+        LOGO_PATH,
+        (W - largura_logo) / 2,
+        H - 4 * cm,
+        width=largura_logo,
+        preserveAspectRatio=True
+    )
 
-    _ir    = ImageReader(BytesIO(_logo_bytes))
-    iw, ih = _ir.getSize()
-    if iw <= 0 or ih <= 0: iw = ih = 1
+    # TÍTULO
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(W/2, H - 5.2 * cm, "JUSTIFICATIVA DE PONTO")
 
-    logo_w = 4.8 * cm
-    logo_h = logo_w * (ih / iw)
-    logo_x = (W - logo_w) / 2
-    logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(W/2, H - 5.8 * cm, "Hospital Regional Sul")
 
-    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
-
-    titulo_y = H - logo_area_h - 0.7 * cm
-    c.setFont("Helvetica-Bold", 16)
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(W / 2, titulo_y, "JUSTIFICATIVA DE PONTO")
-
-    subtitulo_y = titulo_y - 0.58 * cm
-    c.setFont("Helvetica", 9.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(W / 2, subtitulo_y, "Hospital Regional Sul")
-
-    y = subtitulo_y - 0.7 * cm
-    c.setStrokeColor(colors.black)
-    c.line(margem, y, W - margem, y)
-
-    y -= 1.1 * cm
+    # LINHA
+    c.line(margem, H - 6.2 * cm, W - margem, H - 6.2 * cm)
 
     # =========================================
     # DADOS
     # =========================================
+    y = H - 7.2 * cm
+
+    data_fmt = data.strftime("%d/%m/%Y")
+    duracao = calcular_duracao(data, entrada, saida)
+    duracao_fmt = formatar_duracao(duracao)
+
     campos = [
-        ("Médico",  nome),
-        ("CRM",     crm),
-        ("Setor",   setor),
-        ("Data",    data_fmt),
-        ("Entrada", hora_ent),
-        ("Saída",   hora_sai),
-        ("Duração", horas_dur),
+        ("Nome", nome),
+        ("CRM", crm),
+        ("Setor", setor),
+        ("Data", data_fmt),
+        ("Horário", f"{entrada.strftime('%H:%M')} às {saida.strftime('%H:%M')}"),
+        ("Duração", duracao_fmt),
     ]
 
     for titulo, valor in campos:
@@ -101,7 +168,7 @@ if enviar:
         y -= 0.8 * cm
 
     # =========================================
-    # JUSTIFICATIVA (FUNDO BRANCO)
+    # JUSTIFICATIVA
     # =========================================
     y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 11)
@@ -110,47 +177,43 @@ if enviar:
     y -= 0.5 * cm
 
     linhas = quebrar_texto(motivo)
+    altura = len(linhas) * 14 + 20
 
-    altura_box = len(linhas) * 14 + 20
+    c.rect(margem, y - altura, W - 2*margem, altura)
 
-    c.setFillColor(colors.white)  # 🔥 BRANCO
-    c.rect(margem, y - altura_box, W - 2*margem, altura_box)
-
-    texto = c.beginText(margem + 5, y - 15)
-    texto.setFont("Helvetica", 11)
+    txt = c.beginText(margem + 5, y - 15)
+    txt.setFont("Helvetica", 11)
 
     for linha in linhas:
-        texto.textLine(linha)
+        txt.textLine(linha)
 
-    c.drawText(texto)
+    c.drawText(txt)
 
     # =========================================
-    # ASSINATURA (FUNDO BRANCO)
+    # ASSINATURA
     # =========================================
-    y -= altura_box + 2 * cm
+    y -= altura + 2 * cm
 
-    c.setFillColor(colors.white)  # 🔥 BRANCO
     c.drawString(margem, y, "Assinatura:")
     c.line(margem, y - 5, W - margem, y - 5)
     c.drawString(margem + 5*cm, y, assinatura)
 
-    # =========================================
     # RODAPÉ
-    # =========================================
     c.setFont("Helvetica-Oblique", 8)
     c.drawCentredString(
         W/2,
         2*cm,
-        f"Emitido em {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}"
+        f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     )
 
     c.save()
     buffer.seek(0)
 
-    st.success("Relatório enviado com sucesso.")
+    st.success("PDF gerado com sucesso!")
+
     st.download_button(
         "⬇ Baixar PDF",
-        data=buffer,
-        file_name=nome_arquivo_seguro(nome, data_fmt),
+        buffer,
+        file_name=f"{nome}.pdf",
         mime="application/pdf"
     )
