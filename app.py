@@ -1,5 +1,6 @@
 import os
 import re
+from collections import deque
 from datetime import datetime, timedelta, time
 from io import BytesIO
 
@@ -115,6 +116,13 @@ st.markdown(
             padding-top: 1rem;
             border-top: 1px solid {BORDER};
         }}
+        [data-testid="stImage"] img,
+        [data-testid="stImage"] picture img {{
+            background: transparent !important;
+        }}
+        [data-testid="stImage"] {{
+            background: transparent !important;
+        }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -127,6 +135,53 @@ SETOR_OPCOES = [
     "Neurocirurgia",
     "UTI",
 ]
+
+
+@st.cache_data(show_spinner=False)
+def logo_transparente_png(path: str) -> bytes | None:
+    """Remove o fundo claro a partir das bordas (preserva branco interno ao símbolo, ex.: letra M)."""
+    if not os.path.isfile(path):
+        return None
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+
+    def _claro(r: int, g: int, b: int, lim: int) -> bool:
+        return r >= lim and g >= lim and b >= lim
+
+    img = Image.open(path).convert("RGBA")
+    px = img.load()
+    w, h = img.size
+    lim = 245
+    visto = set()
+    fila = deque()
+
+    for x in range(w):
+        for y in (0, h - 1):
+            if (x, y) not in visto and _claro(*px[x, y][:3], lim):
+                visto.add((x, y))
+                fila.append((x, y))
+    for y in range(h):
+        for x in (0, w - 1):
+            if (x, y) not in visto and _claro(*px[x, y][:3], lim):
+                visto.add((x, y))
+                fila.append((x, y))
+
+    while fila:
+        x, y = fila.popleft()
+        r, g, b, a = px[x, y]
+        px[x, y] = (r, g, b, 0)
+        for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visto:
+                if _claro(*px[nx, ny][:3], lim):
+                    visto.add((nx, ny))
+                    fila.append((nx, ny))
+
+    out = BytesIO()
+    img.save(out, format="PNG", optimize=True)
+    return out.getvalue()
 
 
 def quebrar_texto(texto: str, limite: int = 88) -> list[str]:
@@ -184,7 +239,10 @@ def pdf_nova_pagina(c, W: float, H: float, margem: float, y: float, min_y: float
 # ==================================================
 hdr_logo, hdr_txt = st.columns([1, 3], vertical_alignment="center")
 with hdr_logo:
-    if os.path.exists(LOGO_PATH):
+    _logo_png = logo_transparente_png(LOGO_PATH)
+    if _logo_png:
+        st.image(BytesIO(_logo_png), width=96)
+    elif os.path.exists(LOGO_PATH):
         st.image(LOGO_PATH, width=96)
     else:
         st.caption("Logo: imagens/mitri_logo.png")
@@ -236,7 +294,7 @@ with st.container(border=True):
 st.markdown(
     """
     <div class="app-foot">
-        Hospital Regional Sul — formulário para uso interno. Em caso de dúvidas, contate a administração.
+        Em caso de dúvidas, contate a administração do Hospital Regional Sul.
     </div>
     """,
     unsafe_allow_html=True,
@@ -254,13 +312,19 @@ if enviar:
         st.error(f"Logo não encontrada em: `{LOGO_PATH}`. Coloque o arquivo ou ajuste o caminho.")
         st.stop()
 
+    _logo_bytes = logo_transparente_png(LOGO_PATH)
+    if _logo_bytes is None:
+        with open(LOGO_PATH, "rb") as _lf:
+            _logo_bytes = _lf.read()
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     W, H = A4
     margem = 2 * cm
     min_y_conteudo = 2.8 * cm
 
-    ir = ImageReader(LOGO_PATH)
+    _logo_buf = BytesIO(_logo_bytes)
+    ir = ImageReader(_logo_buf)
     iw, ih = ir.getSize()
     if iw <= 0 or ih <= 0:
         iw, ih = 1, 1
@@ -283,8 +347,9 @@ if enviar:
 
     y_logo_bottom = (band_top + band_bot) / 2 - altura_logo / 2 - 0.38 * cm
     x_logo = (W - largura_logo) / 2
+    _logo_draw = BytesIO(_logo_bytes)
     c.drawImage(
-        LOGO_PATH,
+        _logo_draw,
         x_logo,
         y_logo_bottom,
         width=largura_logo,
@@ -380,9 +445,9 @@ if enviar:
     c.drawText(texto)
 
     y -= altura_box + 2.35 * cm
-    y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + 2.6 * cm)
+    y = pdf_nova_pagina(c, W, H, margem, y, min_y_conteudo + 3.2 * cm)
 
-    sig_h = 2.45 * cm
+    sig_h = 3.55 * cm
     sig_left = margem
     sig_w = W - 2 * margem
     c.setFillColor(colors.HexColor("#f8fafc"))
@@ -392,19 +457,19 @@ if enviar:
 
     accent_x = sig_left + 0.35 * cm
     c.setFillColor(colors.HexColor(ACCENT))
-    c.rect(accent_x, y - sig_h + 0.35 * cm, 0.12 * cm, sig_h - 0.7 * cm, fill=1, stroke=0)
+    c.rect(accent_x, y - sig_h + 0.38 * cm, 0.12 * cm, sig_h - 0.85 * cm, fill=1, stroke=0)
     c.setFillColor(colors.black)
 
     tx = sig_left + 0.65 * cm
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawString(tx, y - 0.48 * cm, "Assinatura do médico")
+    c.drawString(tx, y - 0.52 * cm, "Assinatura do médico")
     c.setFont("Helvetica-Oblique", 8)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(tx, y - 0.88 * cm, "Nome completo conforme registro no CRM")
+    c.drawString(tx, y - 0.98 * cm, "Nome completo conforme registro no CRM")
     c.setFillColor(colors.black)
 
-    linha_y = y - 1.62 * cm
+    linha_y = y - 2.58 * cm
     c.setStrokeColor(colors.HexColor(ACCENT))
     c.setLineWidth(1.0)
     line_left = tx
@@ -422,10 +487,13 @@ if enviar:
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(line_left, linha_y - 0.42 * cm, "Assinatura / carimbo quando aplicável")
 
-    c.setFont("Helvetica-Oblique", 7.5)
+    c.setFont("Helvetica-Oblique", 8)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(margem, 1.25 * cm, "Hospital Regional Sul — uso interno")
-    c.drawRightString(W - margem, 1.25 * cm, f"Emitido em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    c.drawCentredString(
+        W / 2,
+        1.2 * cm,
+        f"Emitido em {datetime.now().strftime('%d/%m/%Y às %H:%M')}",
+    )
 
     c.save()
     buffer.seek(0)
