@@ -12,6 +12,9 @@ from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 # ==================================================
 # CONFIG
 # ==================================================
@@ -681,3 +684,30 @@ if enviar:
         type="primary",
         use_container_width=True,
     )
+
+def upload_pdf_para_drive(pdf_buffer, nome_arquivo):
+    creds = Credentials.from_service_account_info(
+        st.secrets["gdrive"],
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+
+    service = build("drive", "v3", credentials=creds)
+
+    folder_id = st.secrets["gdrive_settings"]["folder_id"]
+
+    media = MediaIoBaseUpload(
+        pdf_buffer,
+        mimetype="application/pdf",
+        resumable=False
+    )
+
+    file_metadata = {
+        "name": nome_arquivo,
+        "parents": [folder_id]
+    }
+
+    service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields="id"
+    ).execute()
