@@ -1,7 +1,7 @@
 import os
 import re
 from collections import deque
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 from io import BytesIO
 
 import streamlit as st
@@ -28,6 +28,7 @@ SURFACE  = "#f8fafc"
 BORDER   = "#e2e8f0"
 SECTION  = "#94a3b8"
 SUCCESS  = "#166534"
+_BRT     = timezone(timedelta(hours=-3))   # UTC-3 / Brasília
 
 LOGO_PATH = "imagens/mitri_logo.png"
 
@@ -36,7 +37,6 @@ LOGO_PATH = "imagens/mitri_logo.png"
 def _cor_dominante_logo(path: str) -> str:
     try:
         from PIL import Image
-        import colorsys
     except ImportError:
         return ACCENT
     if not os.path.isfile(path):
@@ -80,47 +80,47 @@ st.markdown(
         /* ── Cabeçalho ── */
         .app-header {{
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            margin-bottom: 1.6rem;
-            padding: 1.8rem 1.6rem 1.6rem 1.6rem;
+            gap: 1.2rem;
+            margin-bottom: 1.4rem;
+            padding: 1.1rem 1.5rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
-            border-radius: 18px;
-            box-shadow: 0 8px 24px rgba(15,41,66,.28);
-            text-align: center;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(15,41,66,.26);
         }}
         .app-header-logo {{
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 0.2rem;
+            flex-shrink: 0;
+        }}
+        .app-header-divider {{
+            width: 1.5px;
+            height: 50px;
+            background: rgba(255,255,255,.2);
+            flex-shrink: 0;
         }}
         .app-header-text {{
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 0.18rem;
+            gap: 0.15rem;
         }}
         .app-header-text h1 {{
-            font-size: 1.55rem !important;
+            font-size: 1.4rem !important;
             font-weight: 800 !important;
             color: #fff !important;
             margin: 0 !important;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.025em;
             line-height: 1.15;
         }}
         .app-header-text .app-header-sub {{
             margin: 0 !important;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 400;
             color: rgba(255,255,255,.55);
             letter-spacing: 0.04em;
             text-transform: uppercase;
-        }}
-        .app-header-divider {{
-            display: none;
         }}
 
         /* ── Seções ── */
@@ -182,7 +182,7 @@ st.markdown(
             width: 100%;
         }}
 
-        /* ── Nota de rodapé ── */
+        /* ── Rodapé ── */
         .app-foot {{
             text-align: center;
             font-size: 0.76rem;
@@ -201,7 +201,7 @@ st.markdown(
             background: transparent !important;
         }}
 
-        /* inputs - borda mais suave */
+        /* inputs borda suave */
         [data-baseweb="input"] input,
         [data-baseweb="textarea"] textarea,
         [data-baseweb="select"] div {{
@@ -292,9 +292,9 @@ def duracao_plantao(d, t_in: time, t_out: time) -> timedelta:
 
 
 def fmt_duracao(td: timedelta) -> str:
-    total  = int(td.total_seconds())
-    h, r   = divmod(total, 3600)
-    m, _   = divmod(r, 60)
+    total = int(td.total_seconds())
+    h, r  = divmod(total, 3600)
+    m, _  = divmod(r, 60)
     return f"{h:02d}h{m:02d}min"
 
 
@@ -320,7 +320,7 @@ def _cabecalho_continua(c, W, H):
 
 
 def _rodape_pdf(c, W):
-    emissao = datetime.now().strftime('%d/%m/%Y  %H:%M')
+    emissao = datetime.now(_BRT).strftime('%d/%m/%Y  %H:%M')
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.5)
     c.line(2 * cm, 1.55 * cm, W - 2 * cm, 1.55 * cm)
@@ -339,7 +339,7 @@ logo_html = ""
 if _logo_png:
     import base64
     _b64 = base64.b64encode(_logo_png).decode()
-    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:96px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:80px;width:auto;filter:brightness(0) invert(1);display:block;" />'
 elif os.path.exists(LOGO_PATH):
     logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
 
@@ -347,6 +347,7 @@ st.markdown(
     f"""
     <div class="app-header">
         <div class="app-header-logo">{logo_html}</div>
+        <div class="app-header-divider"></div>
         <div class="app-header-text">
             <h1>Justificativa de Ponto</h1>
             <p class="app-header-sub">Hospital Regional Sul</p>
@@ -476,11 +477,9 @@ if enviar:
     # ─────────────────────────────────────────────
     logo_area_h = 3.8 * cm
 
-    # Área cinza clara para o logo
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
 
-    # Logo centralizado
     _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
@@ -490,7 +489,6 @@ if enviar:
     logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
-    # Título centralizado abaixo da área cinza
     titulo_y = H - logo_area_h - 0.7 * cm
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.HexColor(PRIMARY))
@@ -501,7 +499,6 @@ if enviar:
     c.setFillColor(colors.HexColor(MUTED))
     c.drawCentredString(W / 2, subtitulo_y, "Hospital Regional Sul")
 
-    # Linha divisória
     y = subtitulo_y - 0.7 * cm
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.8)
@@ -580,7 +577,6 @@ if enviar:
     c.setLineWidth(0.8)
     c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 7, stroke=1, fill=1)
 
-    # Borda lateral colorida
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(margem, y - box_h, 0.18 * cm, box_h, fill=1, stroke=0)
 
@@ -610,20 +606,17 @@ if enviar:
     c.setLineWidth(0.9)
     c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 9, stroke=1, fill=1)
 
-    # Barra lateral colorida
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
 
     cx = W / 2
 
-    # Linha 1: ASSINATURA: [nome] - CRM [crm]
     linha1 = f"ASSINATURA: {assinatura.upper()} - CRM {crm.upper()}"
     c.setFont("Helvetica-Bold", 10.5)
     c.setFillColor(colors.HexColor(PRIMARY))
     c.drawCentredString(cx, y - 0.78 * cm, linha1)
 
-    # Linha 2: horário da assinatura
-    horario_ass = datetime.now().strftime("%d/%m/%Y  %H:%M")
+    horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
     c.setFont("Helvetica", 9)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawCentredString(cx, y - 1.42 * cm, horario_ass)
