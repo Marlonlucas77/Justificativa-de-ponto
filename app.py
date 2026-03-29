@@ -7,7 +7,7 @@ from io import BytesIO
 import os
 
 # ==================================================
-# CONFIGURAÇÃO DA PÁGINA
+# CONFIG
 # ==================================================
 st.set_page_config(
     page_title="Justificativa de Ponto",
@@ -18,26 +18,65 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# ESTILO PROFISSIONAL
+# CSS PROFISSIONAL
 # ==================================================
 st.markdown("""
 <style>
-h1, h2, h3 {text-align:center;}
-.stButton>button {
-    width:100%;
-    background-color:#0e6efd;
-    color:white;
-    border-radius:8px;
-    height:45px;
+
+/* FUNDO */
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #020617);
+    color: #e5e7eb;
 }
+
+/* TÍTULO */
+h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+/* FORM */
+[data-testid="stForm"] {
+    background: rgba(15, 23, 42, 0.7);
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+}
+
+/* INPUTS */
+input, textarea, select {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+}
+
+/* LABELS */
+label {
+    font-size: 13px !important;
+    color: #9ca3af !important;
+}
+
+/* BOTÃO */
+.stButton > button {
+    width: 100%;
+    background: linear-gradient(90deg, #2563eb, #1d4ed8);
+    color: white;
+    border-radius: 8px;
+    height: 45px;
+    font-weight: 600;
+    border: none;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ==================================================
-# CABEÇALHO
+# HEADER
 # ==================================================
 if os.path.exists(LOGO_PATH):
-    st.image(LOGO_PATH, width=140)
+    st.image(LOGO_PATH, width=120)
 
 st.title("Formulário de Justificativa de Ponto")
 st.caption("Hospital Regional Sul")
@@ -63,8 +102,10 @@ with st.form("formulario"):
         data = st.date_input("Data do Plantão *")
 
     c1, c2 = st.columns(2)
+
     with c1:
         hora_entrada = st.time_input("Entrada", value=time(7, 0))
+
     with c2:
         hora_saida = st.time_input("Saída", value=time(19, 0))
 
@@ -75,7 +116,7 @@ with st.form("formulario"):
     enviar = st.form_submit_button("📄 Gerar PDF")
 
 # ==================================================
-# FUNÇÃO PARA QUEBRAR TEXTO (PDF)
+# FUNÇÃO QUEBRA TEXTO
 # ==================================================
 def quebrar_texto(texto, limite=90):
     linhas = []
@@ -93,7 +134,7 @@ def quebrar_texto(texto, limite=90):
     return linhas
 
 # ==================================================
-# GERAÇÃO DO PDF PROFISSIONAL
+# GERAR PDF
 # ==================================================
 if enviar:
 
@@ -106,24 +147,40 @@ if enviar:
     W, H = A4
 
     margem = 2 * cm
-    y = H - 2.5 * cm
+    y = H - 2 * cm
 
-    # LOGO
+    # =========================================
+    # LOGO CENTRALIZADO
+    # =========================================
     if os.path.exists(LOGO_PATH):
-        c.drawImage(LOGO_PATH, margem, y, width=4*cm, preserveAspectRatio=True)
-    
-    # TÍTULO
-    c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(W/2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
+        largura_logo = 5 * cm
+        c.drawImage(
+            LOGO_PATH,
+            (W - largura_logo) / 2,
+            y,
+            width=largura_logo,
+            preserveAspectRatio=True,
+            mask='auto'
+        )
 
-    y -= 1.2 * cm
+    y -= 2.5 * cm
+
+    # =========================================
+    # TÍTULO
+    # =========================================
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(W / 2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
+
+    y -= 0.8 * cm
     c.setFont("Helvetica", 10)
-    c.drawCentredString(W/2, y, "Hospital Regional Sul")
+    c.drawCentredString(W / 2, y, "Hospital Regional Sul")
 
     y -= 0.5 * cm
     c.line(margem, y, W - margem, y)
 
+    # =========================================
     # DADOS
+    # =========================================
     data_fmt = data.strftime("%d/%m/%Y")
     hora_ent = hora_entrada.strftime("%H:%M")
     hora_sai = hora_saida.strftime("%H:%M")
@@ -150,7 +207,9 @@ if enviar:
         c.drawString(margem + 4*cm, y, valor)
         y -= 0.8 * cm
 
-    # CAIXA JUSTIFICATIVA
+    # =========================================
+    # JUSTIFICATIVA (CAIXA)
+    # =========================================
     y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(margem, y, "Justificativa:")
@@ -158,7 +217,6 @@ if enviar:
     y -= 0.5 * cm
 
     linhas = quebrar_texto(motivo, 90)
-
     altura_box = len(linhas) * 14 + 10
 
     c.rect(margem, y - altura_box, W - 2*margem, altura_box)
@@ -171,7 +229,9 @@ if enviar:
 
     c.drawText(texto)
 
+    # =========================================
     # ASSINATURA
+    # =========================================
     y -= altura_box + 2 * cm
 
     c.drawString(margem, y, "Assinatura:")
@@ -179,9 +239,15 @@ if enviar:
 
     c.drawString(margem + 5*cm, y, assinatura)
 
+    # =========================================
     # RODAPÉ
+    # =========================================
     c.setFont("Helvetica-Oblique", 8)
-    c.drawCentredString(W/2, 2*cm, f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    c.drawCentredString(
+        W/2,
+        2*cm,
+        f"Documento gerado eletronicamente em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    )
 
     c.save()
     buffer.seek(0)
