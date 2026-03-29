@@ -18,22 +18,26 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# HEADER SIMPLES E PROFISSIONAL
+# HEADER (LOGO ESQUERDA + TEXTO AO LADO)
 # ==================================================
-col_logo, col_title = st.columns([1, 3])
+col1, col2 = st.columns([1, 5], vertical_alignment="center")
 
-with col_logo:
+with col1:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=80)
+        st.image(LOGO_PATH, width=90)
 
-with col_title:
-    st.title("Formulário de Justificativa de Ponto")
-    st.caption("Hospital Regional Sul")
+with col2:
+    st.markdown("""
+    <div>
+        <h2 style="margin-bottom:5px;">Formulário de Justificativa de Ponto</h2>
+        <p style="margin:0; color:gray;">Hospital Regional Sul</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
 # ==================================================
-# FORMULÁRIO ORGANIZADO
+# FORMULÁRIO
 # ==================================================
 with st.form("formulario"):
 
@@ -83,7 +87,7 @@ def quebrar_texto(texto, limite=90):
     return linhas
 
 # ==================================================
-# PDF CORRETO (COM LOGO FUNCIONANDO)
+# GERAR PDF
 # ==================================================
 if enviar:
 
@@ -92,7 +96,7 @@ if enviar:
         st.stop()
 
     if not os.path.exists(LOGO_PATH):
-        st.error("Logo não encontrado! Verifique o caminho: imagens/mitri_logo.png")
+        st.error("Logo não encontrado em: imagens/mitri_logo.png")
         st.stop()
 
     buffer = BytesIO()
@@ -100,9 +104,10 @@ if enviar:
     W, H = A4
 
     margem = 2 * cm
-    y = H - 2 * cm
 
-    # LOGO CENTRALIZADO (GARANTIDO)
+    # 🔥 LOGO MAIS EMBAIXO (AJUSTADO AQUI)
+    y = H - 4 * cm
+
     largura_logo = 4 * cm
     c.drawImage(
         LOGO_PATH,
@@ -112,7 +117,8 @@ if enviar:
         preserveAspectRatio=True
     )
 
-    y -= 2.5 * cm
+    # ESPAÇO APÓS LOGO
+    y -= 2 * cm
 
     # TÍTULO
     c.setFont("Helvetica-Bold", 14)
