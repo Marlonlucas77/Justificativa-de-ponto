@@ -3,7 +3,7 @@
 # ... (mantive tudo igual até a parte do logo HTML)
 
 logo_html = ""
-if _logo_png:
+if mitri_logo.png:
     import base64
     _b64 = base64.b64encode(_logo_png).decode()
     # 🔥 LOGO MAIOR AQUI
