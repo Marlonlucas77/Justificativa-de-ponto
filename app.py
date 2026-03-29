@@ -18,77 +18,22 @@ st.set_page_config(
 LOGO_PATH = "imagens/mitri_logo.png"
 
 # ==================================================
-# CSS LIMPO E PROFISSIONAL
+# HEADER SIMPLES E PROFISSIONAL
 # ==================================================
-st.markdown("""
-<style>
+col_logo, col_title = st.columns([1, 3])
 
-/* FUNDO CLEAN */
-.stApp {
-    background-color: #0f172a;
-    color: #e5e7eb;
-}
+with col_logo:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=80)
 
-/* TÍTULO */
-h1 {
-    text-align: center;
-    font-size: 26px;
-    font-weight: 600;
-}
-
-/* FORM BOX */
-[data-testid="stForm"] {
-    background-color: #020617;
-    padding: 30px;
-    border-radius: 10px;
-    border: 1px solid #1e293b;
-}
-
-/* INPUTS */
-input, textarea, select {
-    background-color: #020617 !important;
-    color: #ffffff !important;
-    border: 1px solid #334155 !important;
-    border-radius: 6px !important;
-}
-
-/* LABEL */
-label {
-    color: #cbd5f5 !important;
-    font-size: 13px !important;
-}
-
-/* BOTÃO */
-.stButton > button {
-    width: 100%;
-    background-color: #2563eb;
-    color: white;
-    border-radius: 6px;
-    height: 45px;
-    font-weight: 600;
-    border: none;
-}
-
-.stButton > button:hover {
-    background-color: #1d4ed8;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ==================================================
-# HEADER
-# ==================================================
-if os.path.exists(LOGO_PATH):
-    st.image(LOGO_PATH, width=120)
-
-st.title("Formulário de Justificativa de Ponto")
-st.caption("Hospital Regional Sul")
+with col_title:
+    st.title("Formulário de Justificativa de Ponto")
+    st.caption("Hospital Regional Sul")
 
 st.divider()
 
 # ==================================================
-# FORMULÁRIO
+# FORMULÁRIO ORGANIZADO
 # ==================================================
 with st.form("formulario"):
 
@@ -105,22 +50,22 @@ with st.form("formulario"):
         )
         data = st.date_input("Data do Plantão *")
 
-    c1, c2 = st.columns(2)
+    col3, col4 = st.columns(2)
 
-    with c1:
+    with col3:
         hora_entrada = st.time_input("Entrada", value=time(7, 0))
 
-    with c2:
+    with col4:
         hora_saida = st.time_input("Saída", value=time(19, 0))
 
     motivo = st.text_area("Motivo da justificativa *", height=120)
 
     assinatura = st.text_input("Nome para assinatura *")
 
-    enviar = st.form_submit_button("📄 Gerar PDF")
+    enviar = st.form_submit_button("Gerar PDF")
 
 # ==================================================
-# FUNÇÃO QUEBRA TEXTO
+# FUNÇÃO TEXTO PDF
 # ==================================================
 def quebrar_texto(texto, limite=90):
     linhas = []
@@ -138,7 +83,7 @@ def quebrar_texto(texto, limite=90):
     return linhas
 
 # ==================================================
-# PDF
+# PDF CORRETO (COM LOGO FUNCIONANDO)
 # ==================================================
 if enviar:
 
@@ -146,9 +91,9 @@ if enviar:
         st.error("Preencha todos os campos obrigatórios.")
         st.stop()
 
-    # DEBUG DO LOGO (ajuda se não aparecer)
     if not os.path.exists(LOGO_PATH):
-        st.warning("⚠️ Logo não encontrado no caminho: " + LOGO_PATH)
+        st.error("Logo não encontrado! Verifique o caminho: imagens/mitri_logo.png")
+        st.stop()
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -157,32 +102,25 @@ if enviar:
     margem = 2 * cm
     y = H - 2 * cm
 
-    # =========================================
-    # LOGO CENTRALIZADO (AGORA FUNCIONA)
-    # =========================================
-    if os.path.exists(LOGO_PATH):
-        try:
-            largura = 4 * cm
-            c.drawImage(
-                LOGO_PATH,
-                (W - largura) / 2,
-                y,
-                width=largura,
-                preserveAspectRatio=True,
-                mask='auto'
-            )
-        except:
-            st.error("Erro ao carregar o logo no PDF")
+    # LOGO CENTRALIZADO (GARANTIDO)
+    largura_logo = 4 * cm
+    c.drawImage(
+        LOGO_PATH,
+        (W - largura_logo) / 2,
+        y,
+        width=largura_logo,
+        preserveAspectRatio=True
+    )
 
-    y -= 2.2 * cm
+    y -= 2.5 * cm
 
     # TÍTULO
     c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(W/2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
+    c.drawCentredString(W / 2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
 
     y -= 0.8 * cm
     c.setFont("Helvetica", 10)
-    c.drawCentredString(W/2, y, "Hospital Regional Sul")
+    c.drawCentredString(W / 2, y, "Hospital Regional Sul")
 
     y -= 0.5 * cm
     c.line(margem, y, W - margem, y)
@@ -245,7 +183,7 @@ if enviar:
     c.drawCentredString(
         W/2,
         2*cm,
-        f"Documento gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     )
 
     c.save()
@@ -254,7 +192,7 @@ if enviar:
     st.success("PDF gerado com sucesso!")
 
     st.download_button(
-        "⬇️ Baixar PDF",
+        "Baixar PDF",
         data=buffer,
         file_name=f"{nome}-{data_fmt}.pdf",
         mime="application/pdf"
