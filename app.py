@@ -45,34 +45,41 @@ st.markdown(
         .app-header {{
             display: flex;
             align-items: center;
-            gap: 1.1rem;
-            margin-bottom: 1.5rem;
-            padding: 1.1rem 1.3rem;
+            gap: 1.4rem;
+            margin-bottom: 1.6rem;
+            padding: 1.35rem 1.6rem;
             background: linear-gradient(135deg, {PRIMARY} 0%, {ACCENT} 100%);
-            border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(15,41,66,.22);
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(15,41,66,.26);
         }}
-        .app-header-text .app-header-label {{
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            color: rgba(255,255,255,.55);
-            margin: 0 0 0.25rem 0;
+        .app-header-logo {{
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }}
+        .app-header-divider {{
+            width: 1.5px;
+            height: 52px;
+            background: rgba(255,255,255,.22);
+            flex-shrink: 0;
+        }}
+        .app-header-text {{
+            flex: 1;
         }}
         .app-header-text h1 {{
-            font-size: 1.25rem !important;
+            font-size: 1.3rem !important;
             font-weight: 700 !important;
             color: #fff !important;
-            margin: 0 0 0.28rem 0 !important;
-            letter-spacing: -0.02em;
+            margin: 0 0 0.22rem 0 !important;
+            letter-spacing: -0.025em;
             line-height: 1.2;
         }}
         .app-header-text .app-header-sub {{
             margin: 0 !important;
             font-size: 0.88rem;
             font-weight: 400;
-            color: rgba(255,255,255,.65);
+            color: rgba(255,255,255,.6);
+            letter-spacing: 0.01em;
         }}
 
         /* ── Seções ── */
@@ -301,16 +308,16 @@ logo_html = ""
 if _logo_png:
     import base64
     _b64 = base64.b64encode(_logo_png).decode()
-    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:52px;width:auto;filter:brightness(0) invert(1);" />'
+    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:68px;width:auto;filter:brightness(0) invert(1);display:block;" />'
 elif os.path.exists(LOGO_PATH):
     logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
 
 st.markdown(
     f"""
     <div class="app-header">
-        <div style="flex-shrink:0;">{logo_html}</div>
+        <div class="app-header-logo">{logo_html}</div>
+        <div class="app-header-divider"></div>
         <div class="app-header-text">
-            <p class="app-header-label">Formulário Interno</p>
             <h1>Justificativa de Ponto</h1>
             <p class="app-header-sub">Hospital Regional Sul</p>
         </div>
@@ -410,8 +417,8 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    strip_h      = 0.45 * cm
-    band_h       = 3.6 * cm
+    strip_h = 0.45 * cm
+    band_h  = 3.6 * cm
 
     # Faixa primária
     c.setFillColor(colors.HexColor(PRIMARY))
@@ -423,19 +430,18 @@ if enviar:
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, H - strip_h - 0.28 * cm - band_h, W, band_h, fill=1, stroke=0)
 
-    # Logo no cabeçalho
-    _ir  = ImageReader(BytesIO(_logo_bytes))
+    # Logo no cabeçalho (usa ImageReader para evitar erro de extensão com BytesIO)
+    _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
     logo_w = 3.8 * cm
     logo_h = logo_w * (ih / iw)
     logo_x = margem
     logo_y = H - strip_h - 0.28 * cm - (band_h / 2) - (logo_h / 2)
-    c.drawImage(BytesIO(_logo_bytes), logo_x, logo_y,
-                width=logo_w, height=logo_h, mask="auto")
+    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
     # Título à direita do logo
-    txt_x   = logo_x + logo_w + 0.7 * cm
+    txt_x    = logo_x + logo_w + 0.7 * cm
     titulo_y = H - strip_h - 0.28 * cm - 1.05 * cm
     c.setFillColor(colors.HexColor(PRIMARY))
     c.setFont("Helvetica-Bold", 12.5)
@@ -474,23 +480,19 @@ if enviar:
     y = _secao(y, "Dados do Plantão")
 
     campos = [
-        ("Médico",   nome,                             True),
-        ("CRM",      crm,                              False),
-        ("Setor",    setor,                            True),
-        ("Data",     data_fmt,                         False),
-        ("Entrada",  hora_ent,                         True),
-        ("Saída",    hora_sai,                         False),
-        ("Duração",  horas_dur,                        True),
+        ("Médico",  nome,     True),
+        ("CRM",     crm,      False),
+        ("Setor",   setor,    True),
+        ("Data",    data_fmt, False),
+        ("Entrada", hora_ent, True),
+        ("Saída",   hora_sai, False),
+        ("Duração", horas_dur, True),
     ]
 
     label_col_w = 2.6 * cm
     value_x     = margem + label_col_w + 0.2 * cm
     row_h       = 0.68 * cm
     line_extra  = 0.38 * cm
-
-    # Grade 2 colunas para campos simples
-    grid = [f for f in campos]
-    col_w = (W - 2 * margem - 0.5 * cm) / 2
 
     def _campo_linha(cy, titulo_c, valor_c, shade):
         linhas_v = quebrar_texto(str(valor_c), limite=34)
