@@ -191,6 +191,11 @@ st.markdown(
         [data-baseweb="select"] div {{
             border-radius: 8px !important;
         }}
+        [data-testid="stDateInput"] input,
+        [data-testid="stDateInput"] fieldset,
+        div[data-baseweb="datepicker"] input {{
+            border-radius: 8px !important;
+        }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -367,13 +372,11 @@ with st.container(border=True):
         with c2:
             crm  = st.text_input("CRM *", placeholder="Ex.: 12345")
         st.markdown('<p class="form-section">Dados do Plantão</p>', unsafe_allow_html=True)
-        ca, cb, cc = st.columns([3, 2, 2])
+        ca, cb = st.columns([3, 2])
         with ca:
             setor = st.selectbox("Setor *", SETOR_OPCOES)
         with cb:
-            data  = st.date_input("Data *", format="DD/MM/YYYY")
-        with cc:
-            st.empty()
+            data = st.date_input("Data *", format="DD/MM/YYYY")
         cd, ce = st.columns(2)
         with cd:
             hora_entrada = st.time_input("Entrada *", value=time(7, 0),  step=timedelta(minutes=15))
@@ -486,6 +489,7 @@ if enviar:
     c.drawCentredString(cx, subtitulo_y, "Hospital Regional Sul")
 
     y = cabecalho_base_y - 0.20 * cm - 1.0 * cm
+    y -= 0.55 * cm
     # ─────────────────────────────────────────────────────────────
     # HELPERS PDF
     # ─────────────────────────────────────────────────────────────
