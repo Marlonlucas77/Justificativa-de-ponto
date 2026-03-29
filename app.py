@@ -277,7 +277,7 @@ def _nova_pagina(c, W, H, margem, y, min_y):
     _cabecalho_continua(c, W, H)
     return H - margem - 1.0 * cm
 def _cabecalho_continua(c, W, H):
-    c.setFillColor(colors.HexColor(PRIMARY))
+    c.setFillColor(colors.white)
     c.rect(0, H - 0.55 * cm, W, 0.55 * cm, fill=1, stroke=0)
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(0, H - 0.72 * cm, W, 0.18 * cm, fill=1, stroke=0)
@@ -448,35 +448,33 @@ if enviar:
     margem = 2.0 * cm
     min_y  = 2.2 * cm
     # ─────────────────────────────────────────────────────────────
-    # CABEÇALHO PDF
+    # CABEÇALHO PDF — fundo branco, textos centralizados
     # ─────────────────────────────────────────────────────────────
-    hdr_h        = 4.8 * cm
-    logo_panel_w = 5.8 * cm
+    hdr_h = 5.2 * cm
+    # Fundo branco do cabeçalho
     c.setFillColor(colors.white)
-    c.rect(0, H - hdr_h, logo_panel_w, hdr_h, fill=1, stroke=0)
-    c.setFillColor(colors.HexColor("#1e4a6e"))
-    c.rect(logo_panel_w, H - hdr_h, W - logo_panel_w, hdr_h, fill=1, stroke=0)
+    c.rect(0, H - hdr_h, W, hdr_h, fill=1, stroke=0)
+    # Faixa accent na base do cabeçalho
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(0, H - hdr_h - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
+    # Logo centralizado no cabeçalho
     _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
     logo_w = 4.4 * cm
     logo_h = logo_w * (ih / iw)
-    logo_x = (logo_panel_w - logo_w) / 2
-    logo_y = H - hdr_h + (hdr_h - logo_h) / 2
+    logo_x = (W - logo_w) / 2
+    logo_y = H - 1.0 * cm - logo_h
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h,
                 mask="auto", preserveAspectRatio=True)
-    c.setStrokeColor(colors.HexColor("#cbd5e1"))
-    c.setLineWidth(0.5)
-    c.line(logo_panel_w, H - hdr_h + 0.4 * cm, logo_panel_w, H - 0.4 * cm)
-    txt_x = logo_panel_w + 0.95 * cm
-    c.setFont("Helvetica-Bold", 16)
-    c.setFillColor(colors.white)
-    c.drawString(txt_x, H - 2.0 * cm, "JUSTIFICATIVA DE PONTO")
-    c.setFont("Helvetica", 10)
-    c.setFillColor(colors.Color(1, 1, 1, 0.75))
-    c.drawString(txt_x, H - 2.85 * cm, "Hospital Regional Sul")
+    # Título centralizado abaixo do logo
+    cx = W / 2
+    c.setFont("Helvetica-Bold", 17)
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.drawCentredString(cx, H - hdr_h + 1.35 * cm, "JUSTIFICATIVA DE PONTO")
+    c.setFont("Helvetica", 11)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawCentredString(cx, H - hdr_h + 0.55 * cm, "Hospital Regional Sul")
     y = H - hdr_h - 0.20 * cm - 1.0 * cm
     # ─────────────────────────────────────────────────────────────
     # HELPERS PDF
@@ -492,9 +490,9 @@ if enviar:
         c.setLineWidth(0.5)
         c.line(margem + pill_w + 0.25 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
         return cy - 0.85 * cm
-    ROW_H      = 0.72 * cm
-    LINE_EXTRA = 0.40 * cm
-    LBL_W      = 3.2 * cm
+    ROW_H      = 0.90 * cm
+    LINE_EXTRA = 0.50 * cm
+    LBL_W      = 3.4 * cm
     VAL_X      = margem + LBL_W
     def _campo(cy: float, label: str, valor: str, shade: bool) -> float:
         linhas_v = quebrar_texto(str(valor), limite=42)
@@ -502,13 +500,13 @@ if enviar:
         if shade:
             c.setFillColor(colors.HexColor("#f0f4f8"))
             c.rect(margem, cy - rh + 0.08 * cm, W - 2 * margem, rh, fill=1, stroke=0)
-        c.setFont("Helvetica-Bold", 9.5)
+        c.setFont("Helvetica-Bold", 11)
         c.setFillColor(colors.HexColor(PRIMARY))
-        c.drawString(margem + 0.35 * cm, cy - 0.46 * cm, label.upper())
-        c.setFont("Helvetica", 10)
+        c.drawString(margem + 0.35 * cm, cy - 0.52 * cm, label.upper())
+        c.setFont("Helvetica", 11.5)
         c.setFillColor(colors.HexColor("#1e293b"))
         for j, lv in enumerate(linhas_v):
-            c.drawString(VAL_X, cy - 0.46 * cm - j * LINE_EXTRA, lv)
+            c.drawString(VAL_X, cy - 0.52 * cm - j * LINE_EXTRA, lv)
         c.setStrokeColor(colors.HexColor(BORDER))
         c.setLineWidth(0.35)
         c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
@@ -521,12 +519,12 @@ if enviar:
             if shade:
                 c.setFillColor(colors.HexColor("#f0f4f8"))
                 c.rect(ox, cy - rh + 0.08 * cm, col_w, rh, fill=1, stroke=0)
-            c.setFont("Helvetica-Bold", 9.5)
+            c.setFont("Helvetica-Bold", 11)
             c.setFillColor(colors.HexColor(PRIMARY))
-            c.drawString(ox + 0.35 * cm, cy - 0.46 * cm, label.upper())
-            c.setFont("Helvetica", 10)
+            c.drawString(ox + 0.35 * cm, cy - 0.52 * cm, label.upper())
+            c.setFont("Helvetica", 11.5)
             c.setFillColor(colors.HexColor("#1e293b"))
-            c.drawString(ox + 3.0 * cm, cy - 0.46 * cm, str(valor))
+            c.drawString(ox + 3.2 * cm, cy - 0.52 * cm, str(valor))
         c.setStrokeColor(colors.HexColor(BORDER))
         c.setLineWidth(0.35)
         c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
@@ -553,8 +551,8 @@ if enviar:
     y -= 0.9 * cm
     y = _nova_pagina(c, W, H, margem, y, min_y + 3.0 * cm)
     y = _secao_titulo(y, "Justificativa")
-    linhas_mot = quebrar_texto(motivo.strip(), limite=84)
-    line_h_mot = 15
+    linhas_mot = quebrar_texto(motivo.strip(), limite=78)
+    line_h_mot = 18
     pad_top    = 22
     pad_bot    = 16
     box_h      = len(linhas_mot) * line_h_mot + pad_top + pad_bot
@@ -566,7 +564,7 @@ if enviar:
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.roundRect(margem, y - box_h, 0.22 * cm, box_h, 3, fill=1, stroke=0)
     texto_obj = c.beginText(margem + 0.52 * cm, y - pad_top)
-    texto_obj.setFont("Helvetica", 10.5)
+    texto_obj.setFont("Helvetica", 12)
     texto_obj.setLeading(line_h_mot)
     texto_obj.setFillColor(colors.HexColor("#1e293b"))
     for ln in linhas_mot:
@@ -591,14 +589,14 @@ if enviar:
     c.setStrokeColor(colors.HexColor(PRIMARY))
     c.setLineWidth(1.1)
     c.line(cx - 2.5 * cm, y - 1.1 * cm, cx + 2.5 * cm, y - 1.1 * cm)
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColor(colors.HexColor(PRIMARY))
     c.drawCentredString(cx, y - 0.72 * cm, assinatura.upper())
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 10)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 1.4 * cm, f"CRM {crm.upper()}  ·  {setor}")
+    c.drawCentredString(cx, y - 1.45 * cm, f"CRM {crm.upper()}  ·  {setor}")
     horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
-    c.setFont("Helvetica-Oblique", 8.5)
+    c.setFont("Helvetica-Oblique", 9.5)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawCentredString(cx, y - 2.15 * cm, f"Assinado eletronicamente em {horario_ass}")
     y -= sig_h
@@ -631,9 +629,6 @@ if enviar:
             )
         if resultado.get("status") == "ok":
             st.success("Relatório enviado com sucesso! PDF salvo no Google Drive e dados registrados na planilha.")
-            link_pdf = resultado.get("pdf_link")
-            if link_pdf:
-                st.markdown(f"[Abrir PDF no Google Drive]({link_pdf})")
         else:
             st.warning(
                 f"Resposta inesperada do servidor: {resultado.get('message', 'Sem detalhes')}\n\n"
