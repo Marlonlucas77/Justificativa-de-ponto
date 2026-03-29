@@ -34,7 +34,6 @@ LOGO_PATH = "imagens/mitri_logo.png"
 
 @st.cache_data(show_spinner=False)
 def _cor_dominante_logo(path: str) -> str:
-    """Extrai a cor mais predominante (não branca/preta) do logo e retorna como hex."""
     try:
         from PIL import Image
         import colorsys
@@ -52,7 +51,6 @@ def _cor_dominante_logo(path: str) -> str:
             r, g, b, a = px[x, y]
             if a < 30:
                 continue
-            # ignora branco, cinza claro e preto
             mx = max(r, g, b)
             mn = min(r, g, b)
             if mx < 30 or (mx > 220 and mn > 200):
@@ -82,42 +80,47 @@ st.markdown(
         /* ── Cabeçalho ── */
         .app-header {{
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 1.4rem;
+            justify-content: center;
+            gap: 0.75rem;
             margin-bottom: 1.6rem;
-            padding: 1.35rem 1.6rem;
-            background: linear-gradient(135deg, {PRIMARY} 0%, {ACCENT} 100%);
-            border-radius: 16px;
-            box-shadow: 0 6px 20px rgba(15,41,66,.26);
+            padding: 1.8rem 1.6rem 1.6rem 1.6rem;
+            background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(15,41,66,.28);
+            text-align: center;
         }}
         .app-header-logo {{
-            flex-shrink: 0;
             display: flex;
             align-items: center;
-        }}
-        .app-header-divider {{
-            width: 1.5px;
-            height: 52px;
-            background: rgba(255,255,255,.22);
-            flex-shrink: 0;
+            justify-content: center;
+            margin-bottom: 0.2rem;
         }}
         .app-header-text {{
-            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.18rem;
         }}
         .app-header-text h1 {{
-            font-size: 1.3rem !important;
-            font-weight: 700 !important;
+            font-size: 1.55rem !important;
+            font-weight: 800 !important;
             color: #fff !important;
-            margin: 0 0 0.22rem 0 !important;
-            letter-spacing: -0.025em;
-            line-height: 1.2;
+            margin: 0 !important;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
         }}
         .app-header-text .app-header-sub {{
             margin: 0 !important;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 400;
-            color: rgba(255,255,255,.6);
-            letter-spacing: 0.01em;
+            color: rgba(255,255,255,.55);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }}
+        .app-header-divider {{
+            display: none;
         }}
 
         /* ── Seções ── */
@@ -187,14 +190,6 @@ st.markdown(
             margin-top: 2rem;
             padding-top: 1rem;
             border-top: 1px solid {BORDER};
-        }}
-
-        /* ── Dica abaixo do form ── */
-        .form-hint {{
-            font-size: 0.74rem;
-            color: {MUTED};
-            margin-top: 0.5rem;
-            text-align: center;
         }}
 
         /* logo transparente */
@@ -326,15 +321,12 @@ def _cabecalho_continua(c, W, H):
 
 def _rodape_pdf(c, W):
     emissao = datetime.now().strftime('%d/%m/%Y  %H:%M')
-    # Linha separadora
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.5)
     c.line(2 * cm, 1.55 * cm, W - 2 * cm, 1.55 * cm)
-    # Hospital – lado esquerdo
     c.setFont("Helvetica-Oblique", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(2 * cm, 1.1 * cm, "Hospital Regional Sul")
-    # Data de emissão – lado direito
     c.drawRightString(W - 2 * cm, 1.1 * cm, f"Emitido em {emissao}")
 
 
@@ -347,7 +339,7 @@ logo_html = ""
 if _logo_png:
     import base64
     _b64 = base64.b64encode(_logo_png).decode()
-    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:68px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:96px;width:auto;filter:brightness(0) invert(1);display:block;" />'
 elif os.path.exists(LOGO_PATH):
     logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
 
@@ -355,7 +347,6 @@ st.markdown(
     f"""
     <div class="app-header">
         <div class="app-header-logo">{logo_html}</div>
-        <div class="app-header-divider"></div>
         <div class="app-header-text">
             <h1>Justificativa de Ponto</h1>
             <p class="app-header-sub">Hospital Regional Sul</p>
@@ -373,6 +364,7 @@ st.caption("Preencha todos os campos obrigatórios (*) e clique em **Gerar PDF**
 with st.container(border=True):
     with st.form("formulario"):
 
+        # ── Identificação ──────────────────────────
         st.markdown('<p class="form-section">Identificação</p>', unsafe_allow_html=True)
         c1, c2 = st.columns([3, 2])
         with c1:
@@ -380,34 +372,60 @@ with st.container(border=True):
         with c2:
             crm  = st.text_input("CRM *", placeholder="Ex.: 12345 / SP")
 
+        # ── Dados do Plantão ───────────────────────
         st.markdown('<p class="form-section">Dados do Plantão</p>', unsafe_allow_html=True)
-        ca, cb = st.columns([3, 2])
+
+        ca, cb, cc = st.columns([3, 2, 2])
         with ca:
             setor = st.selectbox("Setor *", SETOR_OPCOES)
         with cb:
             data  = st.date_input("Data *", format="DD/MM/YYYY")
-
-        cc, cd = st.columns(2)
         with cc:
-            hora_entrada = st.time_input("Entrada *", value=time(7, 0),  step=timedelta(minutes=15))
+            st.empty()
+
+        cd, ce = st.columns(2)
         with cd:
+            hora_entrada = st.time_input("Entrada *", value=time(7, 0),  step=timedelta(minutes=15))
+        with ce:
             hora_saida   = st.time_input("Saída *",   value=time(19, 0), step=timedelta(minutes=15))
 
+        # ── Justificativa ──────────────────────────
         st.markdown('<p class="form-section">Justificativa</p>', unsafe_allow_html=True)
         motivo = st.text_area(
             "Motivo *",
-            height=130,
+            height=150,
             placeholder=(
                 "Descreva o motivo com objetividade.\n"
                 "Ex.: atraso no registro de entrada, plantão não batido, correção de horário..."
             ),
         )
 
+        # ── Assinatura ─────────────────────────────
         st.markdown('<p class="form-section">Assinatura</p>', unsafe_allow_html=True)
-        assinatura = st.text_input(
-            "Nome para assinatura *",
-            placeholder="Conforme documento oficial / CRM",
-        )
+        cf, cg = st.columns([3, 2])
+        with cf:
+            assinatura = st.text_input(
+                "Nome para assinatura *",
+                placeholder="Conforme documento oficial / CRM",
+            )
+        with cg:
+            st.markdown(
+                f"""
+                <div style="
+                    margin-top: 1.65rem;
+                    padding: 0.5rem 0.75rem;
+                    background: {SURFACE};
+                    border: 1px solid {BORDER};
+                    border-radius: 8px;
+                    font-size: 0.78rem;
+                    color: {MUTED};
+                    line-height: 1.5;
+                ">
+                    O nome digitado será registrado como assinatura eletrônica no PDF.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         enviar = st.form_submit_button("⬇  Gerar PDF", use_container_width=True)
 
@@ -456,8 +474,7 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    logo_area_h = 3.8 * cm   # altura da área cinza com o logo
-    titulo_h    = 1.6 * cm   # espaço abaixo do logo para título e subtítulo
+    logo_area_h = 3.8 * cm
 
     # Área cinza clara para o logo
     c.setFillColor(colors.HexColor("#f1f5f9"))
@@ -473,7 +490,7 @@ if enviar:
     logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
     c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
-    # Título centralizado abaixo da área cinza (fundo branco)
+    # Título centralizado abaixo da área cinza
     titulo_y = H - logo_area_h - 0.7 * cm
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.HexColor(PRIMARY))
@@ -509,23 +526,19 @@ if enviar:
     y = _secao(y, "Dados do Plantão")
 
     campos = [
-        ("Médico",   nome,                             True),
-        ("CRM",      crm,                              False),
-        ("Setor",    setor,                            True),
-        ("Data",     data_fmt,                         False),
-        ("Entrada",  hora_ent,                         True),
-        ("Saída",    hora_sai,                         False),
-        ("Duração",  horas_dur,                        True),
+        ("Médico",  nome,      True),
+        ("CRM",     crm,       False),
+        ("Setor",   setor,     True),
+        ("Data",    data_fmt,  False),
+        ("Entrada", hora_ent,  True),
+        ("Saída",   hora_sai,  False),
+        ("Duração", horas_dur, True),
     ]
 
     label_col_w = 2.6 * cm
     value_x     = margem + label_col_w + 0.2 * cm
     row_h       = 0.68 * cm
     line_extra  = 0.38 * cm
-
-    # Grade 2 colunas para campos simples
-    grid = [f for f in campos]
-    col_w = (W - 2 * margem - 0.5 * cm) / 2
 
     def _campo_linha(cy, titulo_c, valor_c, shade):
         linhas_v = quebrar_texto(str(valor_c), limite=34)
@@ -588,50 +601,32 @@ if enviar:
     y = _nova_pagina(c, W, H, margem, y, min_y + 4.5 * cm)
     y = _secao(y, "Assinatura do Médico")
 
-    sig_h    = 3.8 * cm
+    sig_h    = 2.4 * cm
     sig_left = margem
     sig_w    = W - 2 * margem
 
-    # Caixa com fundo sutil e borda leve
     c.setFillColor(colors.HexColor("#f8fafc"))
     c.setStrokeColor(colors.HexColor("#cbd5e1"))
     c.setLineWidth(0.9)
     c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 9, stroke=1, fill=1)
 
-    # Barra lateral colorida (cor do logo)
+    # Barra lateral colorida
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
 
-    tx      = sig_left + 0.55 * cm
-    tx_end  = sig_left + sig_w - 0.45 * cm
+    cx = W / 2
 
-    # Nome em destaque
-    c.setFont("Helvetica-Bold", 11)
+    # Linha 1: ASSINATURA: [nome] - CRM [crm]
+    linha1 = f"ASSINATURA: {assinatura.upper()} - CRM {crm.upper()}"
+    c.setFont("Helvetica-Bold", 10.5)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawString(tx, y - 0.60 * cm, assinatura)
+    c.drawCentredString(cx, y - 0.78 * cm, linha1)
 
-    # CRM abaixo do nome
-    c.setFont("Helvetica", 8.5)
+    # Linha 2: horário da assinatura
+    horario_ass = datetime.now().strftime("%d/%m/%Y  %H:%M")
+    c.setFont("Helvetica", 9)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(tx, y - 1.05 * cm, f"CRM: {crm}")
-
-    # Linha pontilhada de assinatura
-    linha_y = y - 2.45 * cm
-    c.setStrokeColor(colors.HexColor(LOGO_COLOR))
-    c.setLineWidth(0.8)
-    c.setDash([3, 4])
-    c.line(tx, linha_y, tx_end, linha_y)
-    c.setDash([])   # restaura linha sólida
-
-    # Label "Assinatura" abaixo da linha
-    c.setFont("Helvetica", 7)
-    c.setFillColor(colors.HexColor(SECTION))
-    c.drawString(tx, linha_y - 0.35 * cm, "Assinatura")
-
-    # Data do plantão alinhada à direita
-    c.setFont("Helvetica", 7.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawRightString(tx_end, linha_y - 0.35 * cm, data_fmt)
+    c.drawCentredString(cx, y - 1.42 * cm, horario_ass)
 
     # ─────────────────────────────────────────────
     # RODAPÉ
