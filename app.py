@@ -52,6 +52,7 @@ def _cor_dominante_logo(path: str) -> str:
             r, g, b, a = px[x, y]
             if a < 30:
                 continue
+            # ignora branco, cinza claro e preto
             mx = max(r, g, b)
             mn = min(r, g, b)
             if mx < 30 or (mx > 220 and mn > 200):
@@ -455,8 +456,8 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    strip_h = 0.45 * cm
-    band_h  = 3.6 * cm
+    strip_h      = 0.45 * cm
+    band_h       = 3.6 * cm
 
     # Faixa primária
     c.setFillColor(colors.HexColor(PRIMARY))
@@ -468,18 +469,19 @@ if enviar:
     c.setFillColor(colors.HexColor("#f1f5f9"))
     c.rect(0, H - strip_h - 0.28 * cm - band_h, W, band_h, fill=1, stroke=0)
 
-    # Logo no cabeçalho (usa ImageReader para evitar erro de extensão com BytesIO)
-    _ir    = ImageReader(BytesIO(_logo_bytes))
+    # Logo no cabeçalho  (usa ImageReader para evitar erro de extensão com BytesIO)
+    _ir  = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
     logo_w = 3.8 * cm
     logo_h = logo_w * (ih / iw)
     logo_x = margem
     logo_y = H - strip_h - 0.28 * cm - (band_h / 2) - (logo_h / 2)
-    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
+    c.drawImage(_ir, logo_x, logo_y,
+                width=logo_w, height=logo_h, mask="auto")
 
     # Título à direita do logo
-    txt_x    = logo_x + logo_w + 0.7 * cm
+    txt_x   = logo_x + logo_w + 0.7 * cm
     titulo_y = H - strip_h - 0.28 * cm - 1.05 * cm
     c.setFillColor(colors.HexColor(PRIMARY))
     c.setFont("Helvetica-Bold", 12.5)
@@ -514,19 +516,23 @@ if enviar:
     y = _secao(y, "Dados do Plantão")
 
     campos = [
-        ("Médico",  nome,      True),
-        ("CRM",     crm,       False),
-        ("Setor",   setor,     True),
-        ("Data",    data_fmt,  False),
-        ("Entrada", hora_ent,  True),
-        ("Saída",   hora_sai,  False),
-        ("Duração", horas_dur, True),
+        ("Médico",   nome,                             True),
+        ("CRM",      crm,                              False),
+        ("Setor",    setor,                            True),
+        ("Data",     data_fmt,                         False),
+        ("Entrada",  hora_ent,                         True),
+        ("Saída",    hora_sai,                         False),
+        ("Duração",  horas_dur,                        True),
     ]
 
     label_col_w = 2.6 * cm
     value_x     = margem + label_col_w + 0.2 * cm
     row_h       = 0.68 * cm
     line_extra  = 0.38 * cm
+
+    # Grade 2 colunas para campos simples
+    grid = [f for f in campos]
+    col_w = (W - 2 * margem - 0.5 * cm) / 2
 
     def _campo_linha(cy, titulo_c, valor_c, shade):
         linhas_v = quebrar_texto(str(valor_c), limite=34)
@@ -537,7 +543,7 @@ if enviar:
             c.setLineWidth(0.4)
             c.rect(margem, cy - rh + 0.1 * cm, W - 2 * margem, rh, fill=1, stroke=0)
         c.setFont("Helvetica-Bold", 9.5)
-        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.setFillColor(colors.HexColor(PRIMARY))
         c.drawString(margem + 0.3 * cm, cy - 0.44 * cm, titulo_c)
         c.setFont("Helvetica", 9.5)
         c.setFillColor(colors.black)
@@ -617,10 +623,6 @@ if enviar:
     c.setStrokeColor(colors.HexColor(LOGO_COLOR))
     c.setLineWidth(0.9)
     c.line(tx, linha_y, sig_left + sig_w - 0.5 * cm, linha_y)
-
-    c.setFont("Helvetica", 7.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(tx, linha_y - 0.38 * cm, "Assinatura / carimbo (quando aplicável)")
 
     # ─────────────────────────────────────────────
     # RODAPÉ
