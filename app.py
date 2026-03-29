@@ -94,9 +94,9 @@ if enviar:
     if os.path.exists(LOGO_PATH):
         c.drawImage(
             LOGO_PATH,
-            (W - 5*cm)/2,
+            (W - 4*cm)/1,
             y,
-            width=5*cm,
+            width=4*cm,
             preserveAspectRatio=True,
             mask="auto"
         )
