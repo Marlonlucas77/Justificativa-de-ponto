@@ -1,17 +1,17 @@
 import os
 import re
+import base64
+import json
 from collections import deque
 from datetime import datetime, timedelta, time, timezone
 from io import BytesIO
+import requests as http_requests
 import streamlit as st
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 # ==================================================
 # CONFIG
 # ==================================================
@@ -30,11 +30,6 @@ SECTION  = "#94a3b8"
 SUCCESS  = "#166534"
 _BRT     = timezone(timedelta(hours=-3))
 LOGO_PATH = "imagens/mitri_logo.png"
-# Escopos necessários para Drive e Sheets
-SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
-]
 @st.cache_data(show_spinner=False)
 def _cor_dominante_logo(path: str) -> str:
     try:
@@ -300,220 +295,38 @@ def _rodape_pdf(c, W, H):
     c.drawString(2 * cm, 0.62 * cm, "Documento gerado eletronicamente · Não requer assinatura física")
     c.drawRightString(W - 2 * cm, 0.87 * cm, f"Emitido em {emissao}")
 # ==================================================
-# GOOGLE DRIVE + SHEETS — FUNÇÕES AUXILIARES
+# GOOGLE APPS SCRIPT — ENVIO VIA WEB APP
 # ==================================================
-def _obter_credenciais():
-    """Cria credenciais a partir dos secrets do Streamlit."""
-    creds = Credentials.from_service_account_info(
-        st.secrets["gdrive"],
-        scopes=SCOPES,
-    )
-    return creds
-def _obter_ou_criar_subpasta(drive_service, pasta_pai_id: str, nome_subpasta: str) -> str:
+def enviar_para_google(pdf_buffer: BytesIO, nome_arquivo: str, dados: dict) -> dict:
     """
-    Procura uma subpasta com o nome dado dentro da pasta pai.
-    Se não existir, cria a subpasta e retorna seu ID.
+    Envia o PDF e os dados para o Google Apps Script Web App.
+    O script salva o PDF no Drive (subpasta por setor) e
+    registra os dados na planilha.
+    Retorna o JSON de resposta do Apps Script.
     """
-    query = (
-        f"'{pasta_pai_id}' in parents "
-        f"and name = '{nome_subpasta}' "
-        f"and mimeType = 'application/vnd.google-apps.folder' "
-        f"and trashed = false"
-    )
-    resultado = drive_service.files().list(
-        q=query,
-        spaces="drive",
-        fields="files(id, name)",
-        pageSize=1,
-    ).execute()
-    arquivos = resultado.get("files", [])
-    if arquivos:
-        return arquivos[0]["id"]
-    # Criar subpasta
-    metadata = {
-        "name": nome_subpasta,
-        "mimeType": "application/vnd.google-apps.folder",
-        "parents": [pasta_pai_id],
-    }
-    pasta = drive_service.files().create(
-        body=metadata,
-        fields="id",
-    ).execute()
-    return pasta["id"]
-def upload_pdf_para_drive(pdf_buffer: BytesIO, nome_arquivo: str, setor: str) -> str:
-    """
-    Faz upload do PDF para o Google Drive na subpasta do setor.
-    Retorna o ID do arquivo criado.
-    """
-    creds = _obter_credenciais()
-    drive_service = build("drive", "v3", credentials=creds)
-    pasta_raiz_id = st.secrets["gdrive_settings"]["folder_id"]
-    # Obter ou criar subpasta com o nome do setor
-    pasta_setor_id = _obter_ou_criar_subpasta(drive_service, pasta_raiz_id, setor)
-    # Upload do PDF
+    apps_script_url = st.secrets["apps_script"]["url"]
     pdf_buffer.seek(0)
-    media = MediaIoBaseUpload(
-        pdf_buffer,
-        mimetype="application/pdf",
-        resumable=False,
-    )
-    file_metadata = {
-        "name": nome_arquivo,
-        "parents": [pasta_setor_id],
+    pdf_b64 = base64.b64encode(pdf_buffer.read()).decode("utf-8")
+    payload = {
+        "nome":          dados["nome"],
+        "crm":           dados["crm"],
+        "setor":         dados["setor"],
+        "data_fmt":      dados["data_fmt"],
+        "hora_ent":      dados["hora_ent"],
+        "hora_sai":      dados["hora_sai"],
+        "duracao":       dados["duracao"],
+        "motivo":        dados["motivo"],
+        "assinatura":    dados["assinatura"],
+        "nome_arquivo":  nome_arquivo,
+        "pdf_base64":    pdf_b64,
     }
-    arquivo = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id",
-    ).execute()
-    return arquivo["id"]
-def _obter_ou_criar_planilha(drive_service, sheets_service, pasta_raiz_id: str) -> str:
-    """
-    Procura a planilha 'Justificativas de Ponto' na pasta raiz.
-    Se não existir, cria e adiciona o cabeçalho.
-    Retorna o spreadsheet_id.
-    """
-    nome_planilha = "Justificativas de Ponto"
-    query = (
-        f"'{pasta_raiz_id}' in parents "
-        f"and name = '{nome_planilha}' "
-        f"and mimeType = 'application/vnd.google-apps.spreadsheet' "
-        f"and trashed = false"
+    resp = http_requests.post(
+        apps_script_url,
+        json=payload,
+        timeout=60,
     )
-    resultado = drive_service.files().list(
-        q=query,
-        spaces="drive",
-        fields="files(id, name)",
-        pageSize=1,
-    ).execute()
-    arquivos = resultado.get("files", [])
-    if arquivos:
-        return arquivos[0]["id"]
-    # Criar planilha nova
-    spreadsheet_body = {
-        "properties": {"title": nome_planilha},
-        "sheets": [
-            {
-                "properties": {
-                    "title": "Registros",
-                    "gridProperties": {"frozenRowCount": 1},
-                }
-            }
-        ],
-    }
-    planilha = sheets_service.spreadsheets().create(
-        body=spreadsheet_body,
-        fields="spreadsheetId",
-    ).execute()
-    spreadsheet_id = planilha["spreadsheetId"]
-    # Mover para a pasta correta
-    drive_service.files().update(
-        fileId=spreadsheet_id,
-        addParents=pasta_raiz_id,
-        removeParents="root",
-        fields="id, parents",
-    ).execute()
-    # Adicionar cabeçalho
-    cabecalho = [[
-        "Data/Hora Envio",
-        "Nome do Médico",
-        "CRM",
-        "Setor",
-        "Data do Plantão",
-        "Hora Entrada",
-        "Hora Saída",
-        "Duração",
-        "Motivo",
-        "Assinatura",
-        "ID Arquivo Drive",
-    ]]
-    sheets_service.spreadsheets().values().update(
-        spreadsheetId=spreadsheet_id,
-        range="Registros!A1:K1",
-        valueInputOption="RAW",
-        body={"values": cabecalho},
-    ).execute()
-    # Formatar cabeçalho (negrito + cor de fundo)
-    requests_body = {
-        "requests": [
-            {
-                "repeatCell": {
-                    "range": {
-                        "sheetId": 0,
-                        "startRowIndex": 0,
-                        "endRowIndex": 1,
-                    },
-                    "cell": {
-                        "userEnteredFormat": {
-                            "backgroundColor": {
-                                "red": 0.06,
-                                "green": 0.16,
-                                "blue": 0.26,
-                            },
-                            "textFormat": {
-                                "foregroundColor": {
-                                    "red": 1.0,
-                                    "green": 1.0,
-                                    "blue": 1.0,
-                                },
-                                "bold": True,
-                            },
-                        }
-                    },
-                    "fields": "userEnteredFormat(backgroundColor,textFormat)",
-                }
-            }
-        ]
-    }
-    sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=spreadsheet_id,
-        body=requests_body,
-    ).execute()
-    return spreadsheet_id
-def registrar_na_planilha(
-    nome: str,
-    crm: str,
-    setor: str,
-    data_fmt: str,
-    hora_ent: str,
-    hora_sai: str,
-    duracao: str,
-    motivo: str,
-    assinatura: str,
-    arquivo_drive_id: str,
-):
-    """
-    Adiciona uma nova linha na planilha 'Justificativas de Ponto'
-    com os dados da justificativa.
-    """
-    creds = _obter_credenciais()
-    drive_service  = build("drive", "v3", credentials=creds)
-    sheets_service = build("sheets", "v4", credentials=creds)
-    pasta_raiz_id = st.secrets["gdrive_settings"]["folder_id"]
-    spreadsheet_id = _obter_ou_criar_planilha(
-        drive_service, sheets_service, pasta_raiz_id
-    )
-    agora = datetime.now(_BRT).strftime("%d/%m/%Y %H:%M:%S")
-    nova_linha = [[
-        agora,
-        nome,
-        crm,
-        setor,
-        data_fmt,
-        hora_ent,
-        hora_sai,
-        duracao,
-        motivo,
-        assinatura,
-        arquivo_drive_id,
-    ]]
-    sheets_service.spreadsheets().values().append(
-        spreadsheetId=spreadsheet_id,
-        range="Registros!A:K",
-        valueInputOption="RAW",
-        insertDataOption="INSERT_ROWS",
-        body={"values": nova_linha},
-    ).execute()
+    resp.raise_for_status()
+    return resp.json()
 # ==================================================
 # CABEÇALHO DA PÁGINA (APP)
 # ==================================================
@@ -800,22 +613,32 @@ if enviar:
     # ─────────────────────────────────────────────────────────────
     arquivo_nome = nome_arquivo_seguro(nome, data_fmt)
     try:
-        with st.spinner("Enviando PDF para o Google Drive..."):
-            arquivo_id = upload_pdf_para_drive(buffer, arquivo_nome, setor)
-        with st.spinner("Registrando na planilha..."):
-            registrar_na_planilha(
-                nome=nome,
-                crm=crm,
-                setor=setor,
-                data_fmt=data_fmt,
-                hora_ent=hora_ent,
-                hora_sai=hora_sai,
-                duracao=horas_dur,
-                motivo=motivo.strip(),
-                assinatura=assinatura,
-                arquivo_drive_id=arquivo_id,
+        with st.spinner("Enviando PDF para o Google Drive e registrando na planilha..."):
+            resultado = enviar_para_google(
+                pdf_buffer=buffer,
+                nome_arquivo=arquivo_nome,
+                dados={
+                    "nome":      nome,
+                    "crm":       crm,
+                    "setor":     setor,
+                    "data_fmt":  data_fmt,
+                    "hora_ent":  hora_ent,
+                    "hora_sai":  hora_sai,
+                    "duracao":   horas_dur,
+                    "motivo":    motivo.strip(),
+                    "assinatura": assinatura,
+                },
             )
-        st.success("Relatório enviado com sucesso! PDF salvo no Google Drive e dados registrados na planilha.")
+        if resultado.get("status") == "ok":
+            st.success("Relatório enviado com sucesso! PDF salvo no Google Drive e dados registrados na planilha.")
+            link_pdf = resultado.get("pdf_link")
+            if link_pdf:
+                st.markdown(f"[Abrir PDF no Google Drive]({link_pdf})")
+        else:
+            st.warning(
+                f"Resposta inesperada do servidor: {resultado.get('message', 'Sem detalhes')}\n\n"
+                "Você ainda pode baixar o PDF abaixo."
+            )
     except Exception as e:
         st.warning(
             f"O PDF foi gerado, mas houve um erro ao salvar no Google Drive/Planilha: {e}\n\n"
