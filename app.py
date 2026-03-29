@@ -28,7 +28,7 @@ SURFACE  = "#f8fafc"
 BORDER   = "#e2e8f0"
 SECTION  = "#94a3b8"
 SUCCESS  = "#166534"
-_BRT     = timezone(timedelta(hours=-3))   # UTC-3 / Brasília
+_BRT     = timezone(timedelta(hours=-3))
 
 LOGO_PATH = "imagens/mitri_logo.png"
 
@@ -82,9 +82,9 @@ st.markdown(
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 1.2rem;
+            gap: 1.4rem;
             margin-bottom: 1.4rem;
-            padding: 1.1rem 1.5rem;
+            padding: 1.4rem 1.8rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
             border-radius: 16px;
             box-shadow: 0 6px 20px rgba(15,41,66,.26);
@@ -97,17 +97,17 @@ st.markdown(
         }}
         .app-header-divider {{
             width: 1.5px;
-            height: 50px;
-            background: rgba(255,255,255,.2);
+            height: 64px;
+            background: rgba(255,255,255,.22);
             flex-shrink: 0;
         }}
         .app-header-text {{
             display: flex;
             flex-direction: column;
-            gap: 0.15rem;
+            gap: 0.2rem;
         }}
         .app-header-text h1 {{
-            font-size: 1.4rem !important;
+            font-size: 1.5rem !important;
             font-weight: 800 !important;
             color: #fff !important;
             margin: 0 !important;
@@ -192,7 +192,6 @@ st.markdown(
             border-top: 1px solid {BORDER};
         }}
 
-        /* logo transparente */
         [data-testid="stImage"] img,
         [data-testid="stImage"] picture img {{
             background: transparent !important;
@@ -201,7 +200,6 @@ st.markdown(
             background: transparent !important;
         }}
 
-        /* inputs borda suave */
         [data-baseweb="input"] input,
         [data-baseweb="textarea"] textarea,
         [data-baseweb="select"] div {{
@@ -306,32 +304,40 @@ def nome_arquivo_seguro(nome: str, data_fmt: str) -> str:
 def _nova_pagina(c, W, H, margem, y, min_y):
     if y >= min_y:
         return y
-    _rodape_pdf(c, W)
+    _rodape_pdf(c, W, H)
     c.showPage()
     _cabecalho_continua(c, W, H)
-    return H - margem - 1.2 * cm
+    return H - margem - 1.0 * cm
 
 
 def _cabecalho_continua(c, W, H):
+    """Faixa topo em páginas de continuação."""
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.rect(0, H - 0.42 * cm, W, 0.42 * cm, fill=1, stroke=0)
-    c.setFillColor(colors.HexColor(ACCENT))
-    c.rect(0, H - 0.72 * cm, W, 0.30 * cm, fill=1, stroke=0)
+    c.rect(0, H - 0.55 * cm, W, 0.55 * cm, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
+    c.rect(0, H - 0.72 * cm, W, 0.18 * cm, fill=1, stroke=0)
 
 
-def _rodape_pdf(c, W):
+def _rodape_pdf(c, W, H):
     emissao = datetime.now(_BRT).strftime('%d/%m/%Y  %H:%M')
-    c.setStrokeColor(colors.HexColor(BORDER))
-    c.setLineWidth(0.5)
-    c.line(2 * cm, 1.55 * cm, W - 2 * cm, 1.55 * cm)
-    c.setFont("Helvetica-Oblique", 7.5)
+    # faixa inferior
+    c.setFillColor(colors.HexColor("#f1f5f9"))
+    c.rect(0, 0, W, 1.8 * cm, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.rect(0, 1.78 * cm, W, 0.04 * cm, fill=1, stroke=0)
+
+    c.setFont("Helvetica-Bold", 7.5)
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.drawString(2 * cm, 1.12 * cm, "Hospital Regional Sul")
+
+    c.setFont("Helvetica", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(2 * cm, 1.1 * cm, "Hospital Regional Sul")
-    c.drawRightString(W - 2 * cm, 1.1 * cm, f"Emitido em {emissao}")
+    c.drawString(2 * cm, 0.62 * cm, "Documento gerado eletronicamente · Não requer assinatura física")
+    c.drawRightString(W - 2 * cm, 0.87 * cm, f"Emitido em {emissao}")
 
 
 # ==================================================
-# CABEÇALHO DA PÁGINA
+# CABEÇALHO DA PÁGINA (APP)
 # ==================================================
 _logo_png = logo_transparente_png(LOGO_PATH)
 
@@ -339,7 +345,11 @@ logo_html = ""
 if _logo_png:
     import base64
     _b64 = base64.b64encode(_logo_png).decode()
-    logo_html = f'<img src="data:image/png;base64,{_b64}" style="height:80px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+    # ── LOGO MAIOR: height passou de 80px → 110px ──
+    logo_html = (
+        f'<img src="data:image/png;base64,{_b64}" '
+        f'style="height:110px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+    )
 elif os.path.exists(LOGO_PATH):
     logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
 
@@ -365,7 +375,6 @@ st.caption("Preencha todos os campos obrigatórios (*) e clique em **Enviar rela
 with st.container(border=True):
     with st.form("formulario"):
 
-        # ── Identificação ──────────────────────────
         st.markdown('<p class="form-section">Identificação</p>', unsafe_allow_html=True)
         c1, c2 = st.columns([3, 2])
         with c1:
@@ -373,9 +382,7 @@ with st.container(border=True):
         with c2:
             crm  = st.text_input("CRM *", placeholder="Ex.: 12345")
 
-        # ── Dados do Plantão ───────────────────────
         st.markdown('<p class="form-section">Dados do Plantão</p>', unsafe_allow_html=True)
-
         ca, cb, cc = st.columns([3, 2, 2])
         with ca:
             setor = st.selectbox("Setor *", SETOR_OPCOES)
@@ -390,7 +397,6 @@ with st.container(border=True):
         with ce:
             hora_saida   = st.time_input("Saída *",   value=time(19, 0), step=timedelta(minutes=15))
 
-        # ── Justificativa ──────────────────────────
         st.markdown('<p class="form-section">Justificativa</p>', unsafe_allow_html=True)
         motivo = st.text_area(
             "Motivo *",
@@ -401,7 +407,6 @@ with st.container(border=True):
             ),
         )
 
-        # ── Assinatura ─────────────────────────────
         st.markdown('<p class="form-section">Assinatura</p>', unsafe_allow_html=True)
         cf, cg = st.columns([3, 2])
         with cf:
@@ -428,7 +433,7 @@ with st.container(border=True):
                 unsafe_allow_html=True,
             )
 
-        enviar = st.form_submit_button("⬇  Enviar relatório", use_container_width=True)
+        enviar = st.form_submit_button("📄  Enviar relatório", use_container_width=True)
 
 st.markdown(
     '<p class="app-foot">Em caso de dúvidas, contate a administração · Hospital Regional Sul</p>',
@@ -436,7 +441,7 @@ st.markdown(
 )
 
 # ==================================================
-# GERAR PDF
+# GERAR PDF  –  layout profissional
 # ==================================================
 if enviar:
     erros = []
@@ -458,130 +463,188 @@ if enviar:
         with open(LOGO_PATH, "rb") as _lf:
             _logo_bytes = _lf.read()
 
-    # ── Métricas ──
     data_fmt  = data.strftime("%d/%m/%Y")
     hora_ent  = hora_entrada.strftime("%H:%M")
     hora_sai  = hora_saida.strftime("%H:%M")
     td_dur    = duracao_plantao(data, hora_entrada, hora_saida)
     horas_dur = fmt_duracao(td_dur)
+    protocolo = datetime.now(_BRT).strftime("PROT-%Y%m%d-%H%M%S")
 
-    # ── Canvas ──
     buffer = BytesIO()
     c      = canvas.Canvas(buffer, pagesize=A4)
     W, H   = A4
-    margem = 2.1 * cm
-    min_y  = 2.8 * cm
+    margem = 2.0 * cm
+    min_y  = 2.2 * cm
 
-    # ─────────────────────────────────────────────
-    # CABEÇALHO PDF
-    # ─────────────────────────────────────────────
-    logo_area_h = 3.8 * cm
+    # ─────────────────────────────────────────────────────────────
+    # CABEÇALHO PDF  –  faixa azul escura + logo esquerda + texto
+    # ─────────────────────────────────────────────────────────────
+    hdr_h = 4.6 * cm
 
-    c.setFillColor(colors.HexColor("#f1f5f9"))
-    c.rect(0, H - logo_area_h, W, logo_area_h, fill=1, stroke=0)
+    # fundo gradiente simulado com dois retângulos
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.rect(0, H - hdr_h, W, hdr_h, fill=1, stroke=0)
 
+    # traço accent color na base do cabeçalho
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
+    c.rect(0, H - hdr_h - 0.22 * cm, W, 0.22 * cm, fill=1, stroke=0)
+
+    # logo à esquerda, dentro do cabeçalho
     _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
-    logo_w = 4.8 * cm
+    logo_w = 5.5 * cm
     logo_h = logo_w * (ih / iw)
-    logo_x = (W - logo_w) / 2
-    logo_y = H - logo_area_h + (logo_area_h - logo_h) / 2
-    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
+    logo_x = margem
+    logo_y = H - hdr_h + (hdr_h - logo_h) / 2
+    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h,
+                mask="auto", preserveAspectRatio=True)
 
-    titulo_y = H - logo_area_h - 0.7 * cm
-    c.setFont("Helvetica-Bold", 16)
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(W / 2, titulo_y, "JUSTIFICATIVA DE PONTO")
-
-    subtitulo_y = titulo_y - 0.58 * cm
-    c.setFont("Helvetica", 9.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(W / 2, subtitulo_y, "Hospital Regional Sul")
-
-    y = subtitulo_y - 0.7 * cm
-    c.setStrokeColor(colors.HexColor(BORDER))
+    # separador vertical
+    sep_x = margem + logo_w + 0.7 * cm
+    c.setStrokeColor(colors.HexColor("rgba(255,255,255,0.25)"))
+    c.setStrokeColorRGB(1, 1, 1, alpha=0.2)
     c.setLineWidth(0.8)
-    c.line(margem, y, W - margem, y)
+    c.line(sep_x, H - hdr_h + 0.6 * cm, sep_x, H - 0.6 * cm)
 
-    y -= 1.1 * cm
+    # título e subtítulo à direita do separador
+    txt_x = sep_x + 0.7 * cm
+    c.setFont("Helvetica-Bold", 17)
+    c.setFillColor(colors.white)
+    c.drawString(txt_x, H - 1.85 * cm, "JUSTIFICATIVA DE PONTO")
 
-    # ─────────────────────────────────────────────
-    # SEÇÃO: DADOS DO PLANTÃO
-    # ─────────────────────────────────────────────
-    def _secao(cy, titulo):
-        c.setFont("Helvetica-Bold", 8)
-        c.setFillColor(colors.HexColor(MUTED))
-        c.drawString(margem, cy, titulo.upper())
-        c.setStrokeColor(colors.HexColor(BORDER))
-        c.setLineWidth(0.6)
-        lbl_w = c.stringWidth(titulo.upper(), "Helvetica-Bold", 8)
-        c.line(margem + lbl_w + 0.3 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
-        c.setFillColor(colors.black)
-        return cy - 0.7 * cm
+    c.setFont("Helvetica", 10)
+    c.setFillColor(colors.HexColor("rgba(255,255,255,0.65)"))
+    c.setFillColorRGB(1, 1, 1, alpha=0.65)
+    c.drawString(txt_x, H - 2.55 * cm, "Hospital Regional Sul")
 
-    y = _secao(y, "Dados do Plantão")
+    c.setFont("Helvetica", 8.5)
+    c.setFillColorRGB(1, 1, 1, alpha=0.5)
+    c.drawString(txt_x, H - 3.25 * cm, protocolo)
 
-    campos = [
-        ("Médico",  nome,      True),
-        ("CRM",     crm,       False),
-        ("Setor",   setor,     True),
-        ("Data",    data_fmt,  False),
-        ("Entrada", hora_ent,  True),
-        ("Saída",   hora_sai,  False),
-        ("Duração", horas_dur, True),
-    ]
+    # data de emissão (canto direito superior)
+    emissao_hdr = datetime.now(_BRT).strftime("%d/%m/%Y")
+    c.setFont("Helvetica", 8)
+    c.setFillColorRGB(1, 1, 1, alpha=0.55)
+    c.drawRightString(W - margem, H - 1.5 * cm, emissao_hdr)
 
-    label_col_w = 2.6 * cm
-    value_x     = margem + label_col_w + 0.2 * cm
-    row_h       = 0.68 * cm
-    line_extra  = 0.38 * cm
+    y = H - hdr_h - 0.22 * cm - 1.0 * cm   # início do conteúdo
 
-    def _campo_linha(cy, titulo_c, valor_c, shade):
-        linhas_v = quebrar_texto(str(valor_c), limite=34)
-        rh = max(row_h, 0.42 * cm + max(0, len(linhas_v) - 1) * line_extra + 0.18 * cm)
-        if shade:
-            c.setFillColor(colors.HexColor("#f8fafc"))
-            c.setStrokeColor(colors.HexColor(BORDER))
-            c.setLineWidth(0.4)
-            c.rect(margem, cy - rh + 0.1 * cm, W - 2 * margem, rh, fill=1, stroke=0)
-        c.setFont("Helvetica-Bold", 11)
+    # ─────────────────────────────────────────────────────────────
+    # HELPERS PDF
+    # ─────────────────────────────────────────────────────────────
+    def _secao_titulo(cy: float, titulo: str) -> float:
+        """Título de seção com barra colorida e linha separadora."""
+        # pill colorido
+        pill_w = c.stringWidth(titulo.upper(), "Helvetica-Bold", 8) + 0.8 * cm
         c.setFillColor(colors.HexColor(PRIMARY))
-        c.drawString(margem + 0.3 * cm, cy - 0.44 * cm, titulo_c)
-        c.setFont("Helvetica", 11)
-        c.setFillColor(colors.black)
+        c.roundRect(margem, cy - 0.05 * cm, pill_w, 0.52 * cm, 4, fill=1, stroke=0)
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(colors.white)
+        c.drawString(margem + 0.35 * cm, cy + 0.11 * cm, titulo.upper())
+        # linha restante
+        c.setStrokeColor(colors.HexColor(BORDER))
+        c.setLineWidth(0.5)
+        c.line(margem + pill_w + 0.25 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
+        return cy - 0.85 * cm
+
+    ROW_H      = 0.72 * cm
+    LINE_EXTRA = 0.40 * cm
+    LBL_W      = 3.2 * cm
+    VAL_X      = margem + LBL_W
+
+    def _campo(cy: float, label: str, valor: str, shade: bool) -> float:
+        linhas_v = quebrar_texto(str(valor), limite=42)
+        rh = max(ROW_H, 0.44 * cm + max(0, len(linhas_v) - 1) * LINE_EXTRA + 0.20 * cm)
+        if shade:
+            c.setFillColor(colors.HexColor("#f0f4f8"))
+            c.rect(margem, cy - rh + 0.08 * cm, W - 2 * margem, rh, fill=1, stroke=0)
+        # label
+        c.setFont("Helvetica-Bold", 9.5)
+        c.setFillColor(colors.HexColor(PRIMARY))
+        c.drawString(margem + 0.35 * cm, cy - 0.46 * cm, label.upper())
+        # valor
+        c.setFont("Helvetica", 10)
+        c.setFillColor(colors.HexColor("#1e293b"))
         for j, lv in enumerate(linhas_v):
-            c.drawString(value_x, cy - 0.44 * cm - j * line_extra, lv)
+            c.drawString(VAL_X, cy - 0.46 * cm - j * LINE_EXTRA, lv)
+        # linha divisória fina
+        c.setStrokeColor(colors.HexColor(BORDER))
+        c.setLineWidth(0.35)
+        c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
         return cy - rh
 
-    for i, (lbl, val, shade) in enumerate(campos):
-        y = _nova_pagina(c, W, H, margem, y, min_y + row_h + 0.5 * cm)
-        y = _campo_linha(y, lbl, val, shade)
+    def _campo_2col(cy: float, pares: list[tuple]) -> float:
+        """Renderiza até 2 campos lado a lado."""
+        rh = ROW_H
+        col_w = (W - 2 * margem) / 2
+        for i, (label, valor, shade) in enumerate(pares):
+            ox = margem + i * col_w
+            if shade:
+                c.setFillColor(colors.HexColor("#f0f4f8"))
+                c.rect(ox, cy - rh + 0.08 * cm, col_w, rh, fill=1, stroke=0)
+            c.setFont("Helvetica-Bold", 9.5)
+            c.setFillColor(colors.HexColor(PRIMARY))
+            c.drawString(ox + 0.35 * cm, cy - 0.46 * cm, label.upper())
+            c.setFont("Helvetica", 10)
+            c.setFillColor(colors.HexColor("#1e293b"))
+            c.drawString(ox + 3.0 * cm, cy - 0.46 * cm, str(valor))
+        c.setStrokeColor(colors.HexColor(BORDER))
+        c.setLineWidth(0.35)
+        c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
+        return cy - rh
 
-    # ─────────────────────────────────────────────
-    # SEÇÃO: JUSTIFICATIVA
-    # ─────────────────────────────────────────────
-    y -= 0.85 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 2.5 * cm)
-    y = _secao(y, "Justificativa")
+    # ─────────────────────────────────────────────────────────────
+    # BLOCO 1 — DADOS DO PLANTÃO
+    # ─────────────────────────────────────────────────────────────
+    y = _secao_titulo(y, "Dados do Plantão")
 
-    linhas_mot = quebrar_texto(motivo.strip(), limite=86)
+    # borda ao redor do bloco (desenhada depois de calcular altura)
+    bloco1_top = y + 0.85 * cm   # topo antes dos campos
+
+    y = _campo(y, "Médico",  nome,   True)
+    y = _campo(y, "CRM",     crm,    False)
+    y = _campo(y, "Setor",   setor,  True)
+    y = _campo_2col(y, [("Data", data_fmt, False), ("Duração", horas_dur, False)])
+    y = _campo_2col(y, [("Entrada", hora_ent, True), ("Saída", hora_sai, True)])
+
+    # borda do bloco
+    bloco1_bot = y
+    c.setStrokeColor(colors.HexColor(BORDER))
+    c.setLineWidth(0.7)
+    c.roundRect(margem, bloco1_bot, W - 2 * margem, bloco1_top - bloco1_bot, 5, stroke=1, fill=0)
+    # barra colorida esquerda
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
+    c.roundRect(margem, bloco1_bot, 0.22 * cm, bloco1_top - bloco1_bot, 3, fill=1, stroke=0)
+
+    # ─────────────────────────────────────────────────────────────
+    # BLOCO 2 — JUSTIFICATIVA
+    # ─────────────────────────────────────────────────────────────
+    y -= 0.9 * cm
+    y = _nova_pagina(c, W, H, margem, y, min_y + 3.0 * cm)
+    y = _secao_titulo(y, "Justificativa")
+
+    linhas_mot = quebrar_texto(motivo.strip(), limite=84)
     line_h_mot = 15
-    pad_mot    = 18
-    box_h      = len(linhas_mot) * line_h_mot + pad_mot * 2
+    pad_top    = 22
+    pad_bot    = 16
+    box_h      = len(linhas_mot) * line_h_mot + pad_top + pad_bot
 
-    y = _nova_pagina(c, W, H, margem, y, min_y + box_h / 72 * 2.54 * cm + 0.5 * cm)
+    y = _nova_pagina(c, W, H, margem, y, min_y + box_h / 28.35 + 0.5 * cm)
 
+    # caixa de fundo
     c.setFillColor(colors.HexColor("#fafbfc"))
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.8)
-    c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 7, stroke=1, fill=1)
+    c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 6, stroke=1, fill=1)
 
+    # barra colorida esquerda
     c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(margem, y - box_h, 0.18 * cm, box_h, fill=1, stroke=0)
+    c.roundRect(margem, y - box_h, 0.22 * cm, box_h, 3, fill=1, stroke=0)
 
-    texto_obj = c.beginText(margem + 0.45 * cm, y - pad_mot)
-    texto_obj.setFont("Helvetica", 11)
+    # texto
+    texto_obj = c.beginText(margem + 0.52 * cm, y - pad_top)
+    texto_obj.setFont("Helvetica", 10.5)
     texto_obj.setLeading(line_h_mot)
     texto_obj.setFillColor(colors.HexColor("#1e293b"))
     for ln in linhas_mot:
@@ -590,45 +653,56 @@ if enviar:
 
     y -= box_h
 
-    # ─────────────────────────────────────────────
-    # SEÇÃO: ASSINATURA
-    # ─────────────────────────────────────────────
-    y -= 1.2 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 4.5 * cm)
-    y = _secao(y, "Assinatura do Médico")
+    # ─────────────────────────────────────────────────────────────
+    # BLOCO 3 — ASSINATURA
+    # ─────────────────────────────────────────────────────────────
+    y -= 1.0 * cm
+    y = _nova_pagina(c, W, H, margem, y, min_y + 5.0 * cm)
+    y = _secao_titulo(y, "Assinatura do Médico")
 
-    sig_h    = 2.4 * cm
-    sig_left = margem
-    sig_w    = W - 2 * margem
+    sig_h   = 3.0 * cm
+    sig_w   = W - 2 * margem
 
+    # fundo
     c.setFillColor(colors.HexColor("#f8fafc"))
     c.setStrokeColor(colors.HexColor("#cbd5e1"))
     c.setLineWidth(0.9)
-    c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 9, stroke=1, fill=1)
+    c.roundRect(margem, y - sig_h, sig_w, sig_h, 8, stroke=1, fill=1)
 
+    # barra esquerda
     c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
+    c.roundRect(margem, y - sig_h + 0.35 * cm, 0.22 * cm, sig_h - 0.7 * cm, 3, fill=1, stroke=0)
 
     cx = W / 2
 
-    linha1 = f"ASSINATURA: {assinatura.upper()} - CRM {crm.upper()}"
-    c.setFont("Helvetica-Bold", 10.5)
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, y - 0.78 * cm, linha1)
+    # ícone de assinatura simulado (linha ondulada)
+    c.setStrokeColor(colors.HexColor(PRIMARY))
+    c.setLineWidth(1.1)
+    c.line(cx - 2.5 * cm, y - 1.1 * cm, cx + 2.5 * cm, y - 1.1 * cm)
 
-    horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColor(colors.HexColor(PRIMARY))
+    c.drawCentredString(cx, y - 0.72 * cm, assinatura.upper())
+
     c.setFont("Helvetica", 9)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 1.42 * cm, horario_ass)
+    c.drawCentredString(cx, y - 1.4 * cm, f"CRM {crm.upper()}  ·  {setor}")
 
-    # ─────────────────────────────────────────────
+    horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
+    c.setFont("Helvetica-Oblique", 8.5)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawCentredString(cx, y - 2.15 * cm, f"Assinado eletronicamente em {horario_ass}")
+
+    y -= sig_h
+
+    # ─────────────────────────────────────────────────────────────
     # RODAPÉ
-    # ─────────────────────────────────────────────
-    _rodape_pdf(c, W)
+    # ─────────────────────────────────────────────────────────────
+    _rodape_pdf(c, W, H)
     c.save()
     buffer.seek(0)
 
-    st.success("Relatório enviado com sucesso.")
+    st.success("✅ Relatório enviado com sucesso!")
     st.download_button(
         label="⬇  Baixar PDF",
         data=buffer,
@@ -637,4 +711,3 @@ if enviar:
         type="primary",
         use_container_width=True,
     )
-
