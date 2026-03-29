@@ -448,34 +448,44 @@ if enviar:
     margem = 2.0 * cm
     min_y  = 2.2 * cm
     # ─────────────────────────────────────────────────────────────
-    # CABEÇALHO PDF — fundo branco, textos centralizados
+    # CABEÇALHO PDF — título/subtítulo abaixo do logo (sem sobreposição)
     # ─────────────────────────────────────────────────────────────
-    hdr_h = 5.2 * cm
-    # Fundo branco do cabeçalho
-    c.setFillColor(colors.white)
-    c.rect(0, H - hdr_h, W, hdr_h, fill=1, stroke=0)
-    # Faixa accent na base do cabeçalho
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(0, H - hdr_h - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
-    # Logo centralizado no cabeçalho
-    _ir    = ImageReader(BytesIO(_logo_bytes))
-    iw, ih = _ir.getSize()
-    if iw <= 0 or ih <= 0: iw = ih = 1
+    iw, ih = ImageReader(BytesIO(_logo_bytes)).getSize()
+    if iw <= 0 or ih <= 0:
+        iw = ih = 1
     logo_w = 4.4 * cm
     logo_h = logo_w * (ih / iw)
     logo_x = (W - logo_w) / 2
     logo_y = H - 1.0 * cm - logo_h
-    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h,
-                mask="auto", preserveAspectRatio=True)
-    # Título centralizado abaixo do logo
+    titulo_y = logo_y - 0.80 * cm
+    subtitulo_y = titulo_y - 0.62 * cm
+    cabecalho_base_y = subtitulo_y - 0.50 * cm
+    hdr_h = H - cabecalho_base_y
+
+    c.setFillColor(colors.white)
+    c.rect(0, cabecalho_base_y, W, hdr_h, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
+    c.rect(0, cabecalho_base_y - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
+
+    c.drawImage(
+        ImageReader(BytesIO(_logo_bytes)),
+        logo_x,
+        logo_y,
+        width=logo_w,
+        height=logo_h,
+        mask="auto",
+        preserveAspectRatio=True,
+    )
+
     cx = W / 2
     c.setFont("Helvetica-Bold", 17)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, H - hdr_h + 1.35 * cm, "JUSTIFICATIVA DE PONTO")
+    c.drawCentredString(cx, titulo_y, "JUSTIFICATIVA DE PONTO")
     c.setFont("Helvetica", 11)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, H - hdr_h + 0.55 * cm, "Hospital Regional Sul")
-    y = H - hdr_h - 0.20 * cm - 1.0 * cm
+    c.drawCentredString(cx, subtitulo_y, "Hospital Regional Sul")
+
+    y = cabecalho_base_y - 0.20 * cm - 1.0 * cm
     # ─────────────────────────────────────────────────────────────
     # HELPERS PDF
     # ─────────────────────────────────────────────────────────────
