@@ -7,6 +7,7 @@ import streamlit as st
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 # ==================================================
@@ -38,12 +39,17 @@ st.markdown(
             max-width: 680px !important;
         }}
         .app-hero {{
-            background: #fff;
+            background: linear-gradient(180deg, #ffffff 0%, {SURFACE} 100%);
             border: 1px solid {BORDER};
-            border-radius: 14px;
-            padding: 1.35rem 1.6rem;
-            margin-bottom: 1.25rem;
-            box-shadow: 0 1px 3px rgba(15, 41, 66, 0.06), 0 4px 14px rgba(15, 41, 66, 0.04);
+            border-radius: 16px;
+            padding: 1.35rem 1.6rem 1.55rem 1.6rem;
+            margin-bottom: 1.35rem;
+            box-shadow: 0 1px 3px rgba(15, 41, 66, 0.06), 0 8px 24px rgba(15, 41, 66, 0.06);
+            text-align: center;
+        }}
+        .app-hero .hero-text {{
+            max-width: 34rem;
+            margin: 0 auto;
         }}
         .app-hero h1 {{
             font-size: 1.4rem !important;
@@ -69,7 +75,7 @@ st.markdown(
             background: rgba(30, 74, 110, 0.08);
             padding: 0.2rem 0.55rem;
             border-radius: 6px;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.65rem;
         }}
         .form-section {{
             font-size: 0.72rem;
@@ -86,10 +92,10 @@ st.markdown(
         }}
         div[data-testid="stVerticalBlockBorderWrapper"] {{
             background: #fff !important;
-            border-radius: 14px !important;
+            border-radius: 16px !important;
             border-color: {BORDER} !important;
-            box-shadow: 0 1px 2px rgba(15, 41, 66, 0.04);
-            padding: 0.35rem 0.5rem 0.85rem 0.5rem !important;
+            box-shadow: 0 1px 2px rgba(15, 41, 66, 0.05);
+            padding: 1rem 1.1rem 1.1rem 1.1rem !important;
         }}
         div[data-testid="stFormSubmitButton"] button {{
             width: 100%;
@@ -186,12 +192,21 @@ def pdf_nova_pagina(c, W: float, H: float, margem: float, y: float, min_y: float
 # ==================================================
 # CABEÇALHO
 # ==================================================
+_, hero_logo, _ = st.columns([1, 2, 1])
+with hero_logo:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=172)
+    else:
+        st.caption("Logo: imagens/mitri_logo.png")
+
 st.markdown(
     f"""
     <div class="app-hero">
-        <span class="tag">Recursos humanos</span>
-        <h1>Justificativa de ponto</h1>
-        <p>Hospital Regional Sul — preencha os campos, confira os dados e gere o PDF para registro no ponto.</p>
+        <div class="hero-text">
+            <span class="tag">Recursos humanos</span>
+            <h1>Justificativa de ponto</h1>
+            <p>Hospital Regional Sul — preencha os campos, confira os dados e gere o PDF para registro no ponto.</p>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -199,13 +214,6 @@ st.markdown(
 
 with st.container(border=True):
     with st.form("formulario"):
-        _pad_l, _logo, _pad_r = st.columns([1, 2, 1])
-        with _logo:
-            if os.path.exists(LOGO_PATH):
-                st.image(LOGO_PATH, width=160)
-            else:
-                st.caption("Logo não encontrada em imagens/mitri_logo.png")
-
         st.markdown('<p class="form-section">Identificação</p>', unsafe_allow_html=True)
         r1c1, r1c2 = st.columns(2)
         with r1c1:
@@ -262,28 +270,41 @@ if enviar:
     W, H = A4
     margem = 2 * cm
     min_y_conteudo = 2.8 * cm
-    header_band_h = 3.4 * cm
+
+    ir = ImageReader(LOGO_PATH)
+    iw, ih = ir.getSize()
+    if iw <= 0 or ih <= 0:
+        iw, ih = 1, 1
+
+    strip_h = 0.42 * cm
+    header_band_h = 3.65 * cm
+    largura_logo = 4.6 * cm
+    altura_logo = largura_logo * (ih / iw)
+
+    band_top = H - strip_h
+    band_bot = H - header_band_h
 
     # Faixa superior (cor institucional)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.rect(0, H - 0.42 * cm, W, 0.42 * cm, fill=1, stroke=0)
+    c.rect(0, H - strip_h, W, strip_h, fill=1, stroke=0)
 
-    # Área clara sob o logo
+    # Área clara: logo centralizado no topo (horizontal e vertical na faixa)
     c.setFillColor(colors.HexColor("#f1f5f9"))
-    c.rect(0, H - header_band_h, W, header_band_h - 0.42 * cm, fill=1, stroke=0)
+    c.rect(0, band_bot, W, header_band_h - strip_h, fill=1, stroke=0)
 
-    y = H - 2.25 * cm
-    largura_logo = 4.0 * cm
+    y_logo_bottom = (band_top + band_bot) / 2 - altura_logo / 2
+    x_logo = (W - largura_logo) / 2
     c.drawImage(
         LOGO_PATH,
-        (W - largura_logo) / 2,
-        y,
+        x_logo,
+        y_logo_bottom,
         width=largura_logo,
-        preserveAspectRatio=True,
+        height=altura_logo,
         mask="auto",
     )
 
-    y -= 2.05 * cm
+    # Títulos logo abaixo da faixa do logo (alinha ao centro da página)
+    y = band_bot - 0.95 * cm
     c.setFillColor(colors.HexColor(PRIMARY))
     c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(W / 2, y, "FORMULÁRIO DE JUSTIFICATIVA DE PONTO")
