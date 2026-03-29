@@ -29,6 +29,43 @@ BORDER   = "#e2e8f0"
 SECTION  = "#94a3b8"
 SUCCESS  = "#166534"
 
+LOGO_PATH = "imagens/mitri_logo.png"
+
+
+@st.cache_data(show_spinner=False)
+def _cor_dominante_logo(path: str) -> str:
+    """Extrai a cor mais predominante (não branca/preta) do logo e retorna como hex."""
+    try:
+        from PIL import Image
+        import colorsys
+    except ImportError:
+        return ACCENT
+    if not os.path.isfile(path):
+        return ACCENT
+    img = Image.open(path).convert("RGBA")
+    img.thumbnail((120, 120))
+    px = img.load()
+    w, h = img.size
+    contagem: dict = {}
+    for x in range(w):
+        for y in range(h):
+            r, g, b, a = px[x, y]
+            if a < 30:
+                continue
+            mx = max(r, g, b)
+            mn = min(r, g, b)
+            if mx < 30 or (mx > 220 and mn > 200):
+                continue
+            balde = (r // 24) * 24, (g // 24) * 24, (b // 24) * 24
+            contagem[balde] = contagem.get(balde, 0) + 1
+    if not contagem:
+        return ACCENT
+    r, g, b = max(contagem, key=contagem.get)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+LOGO_COLOR = _cor_dominante_logo(LOGO_PATH)
+
 st.markdown(
     f"""
     <style>
@@ -101,7 +138,7 @@ st.markdown(
             display: inline-block;
             width: 3px;
             height: 13px;
-            background: {ACCENT};
+            background: {LOGO_COLOR};
             border-radius: 2px;
         }}
 
@@ -121,7 +158,7 @@ st.markdown(
             font-weight: 600 !important;
             font-size: 0.95rem !important;
             padding: 0.7rem 1rem !important;
-            background: linear-gradient(180deg, {ACCENT} 0%, {PRIMARY} 100%) !important;
+            background: linear-gradient(180deg, {LOGO_COLOR} 0%, {PRIMARY} 100%) !important;
             color: white !important;
             border: none !important;
             box-shadow: 0 3px 10px rgba(15,41,66,.28);
@@ -179,7 +216,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-LOGO_PATH    = "imagens/mitri_logo.png"
 SETOR_OPCOES = [
     "Clínica Médica - PS",
     "Diarista - Neurologista",
@@ -288,15 +324,17 @@ def _cabecalho_continua(c, W, H):
 
 
 def _rodape_pdf(c, W):
-    c.setFont("Helvetica-Oblique", 7.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(
-        W / 2, 1.1 * cm,
-        f"Emitido em {datetime.now().strftime('%d/%m/%Y às %H:%M')}  ·  Hospital Regional Sul"
-    )
+    emissao = datetime.now().strftime('%d/%m/%Y  %H:%M')
+    # Linha separadora
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.5)
     c.line(2 * cm, 1.55 * cm, W - 2 * cm, 1.55 * cm)
+    # Hospital – lado esquerdo
+    c.setFont("Helvetica-Oblique", 7.5)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawString(2 * cm, 1.1 * cm, "Hospital Regional Sul")
+    # Data de emissão – lado direito
+    c.drawRightString(W - 2 * cm, 1.1 * cm, f"Emitido em {emissao}")
 
 
 # ==================================================
@@ -423,8 +461,8 @@ if enviar:
     # Faixa primária
     c.setFillColor(colors.HexColor(PRIMARY))
     c.rect(0, H - strip_h, W, strip_h, fill=1, stroke=0)
-    # Faixa accent
-    c.setFillColor(colors.HexColor(ACCENT))
+    # Faixa cor do logo
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(0, H - strip_h - 0.28 * cm, W, 0.28 * cm, fill=1, stroke=0)
     # Área clara do cabeçalho
     c.setFillColor(colors.HexColor("#f1f5f9"))
@@ -451,10 +489,6 @@ if enviar:
     c.setFillColor(colors.HexColor(MUTED))
     c.drawString(txt_x, titulo_y - 0.58 * cm, "Hospital Regional Sul")
 
-    c.setFont("Helvetica", 8)
-    c.setFillColor(colors.HexColor(SECTION))
-    c.drawString(txt_x, titulo_y - 1.05 * cm, f"Data de emissão: {datetime.now().strftime('%d/%m/%Y  %H:%M')}")
-
     # Linha divisória
     y = H - strip_h - 0.28 * cm - band_h - 0.75 * cm
     c.setStrokeColor(colors.HexColor(BORDER))
@@ -480,12 +514,12 @@ if enviar:
     y = _secao(y, "Dados do Plantão")
 
     campos = [
-        ("Médico",  nome,     True),
-        ("CRM",     crm,      False),
-        ("Setor",   setor,    True),
-        ("Data",    data_fmt, False),
-        ("Entrada", hora_ent, True),
-        ("Saída",   hora_sai, False),
+        ("Médico",  nome,      True),
+        ("CRM",     crm,       False),
+        ("Setor",   setor,     True),
+        ("Data",    data_fmt,  False),
+        ("Entrada", hora_ent,  True),
+        ("Saída",   hora_sai,  False),
         ("Duração", horas_dur, True),
     ]
 
@@ -503,7 +537,7 @@ if enviar:
             c.setLineWidth(0.4)
             c.rect(margem, cy - rh + 0.1 * cm, W - 2 * margem, rh, fill=1, stroke=0)
         c.setFont("Helvetica-Bold", 9.5)
-        c.setFillColor(colors.HexColor(ACCENT))
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
         c.drawString(margem + 0.3 * cm, cy - 0.44 * cm, titulo_c)
         c.setFont("Helvetica", 9.5)
         c.setFillColor(colors.black)
@@ -535,7 +569,7 @@ if enviar:
     c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 7, stroke=1, fill=1)
 
     # Borda lateral colorida
-    c.setFillColor(colors.HexColor(ACCENT))
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(margem, y - box_h, 0.18 * cm, box_h, fill=1, stroke=0)
 
     texto_obj = c.beginText(margem + 0.45 * cm, y - pad_mot)
@@ -565,7 +599,7 @@ if enviar:
     c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 9, stroke=1, fill=1)
 
     # Barra lateral
-    c.setFillColor(colors.HexColor(ACCENT))
+    c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
 
     tx = sig_left + 0.55 * cm
@@ -580,7 +614,7 @@ if enviar:
 
     # Linha de assinatura
     linha_y = y - 2.35 * cm
-    c.setStrokeColor(colors.HexColor(ACCENT))
+    c.setStrokeColor(colors.HexColor(LOGO_COLOR))
     c.setLineWidth(0.9)
     c.line(tx, linha_y, sig_left + sig_w - 0.5 * cm, linha_y)
 
