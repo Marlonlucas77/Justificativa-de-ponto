@@ -456,48 +456,43 @@ if enviar:
     # ─────────────────────────────────────────────
     # CABEÇALHO PDF
     # ─────────────────────────────────────────────
-    strip_h      = 0.45 * cm
-    band_h       = 3.6 * cm
+    band_h  = 4.2 * cm   # área cinza clara (sem faixas no topo)
+    faixa_h = 1.05 * cm  # faixa escura inferior
 
-    # Faixa primária
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.rect(0, H - strip_h, W, strip_h, fill=1, stroke=0)
-    # Faixa cor do logo
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(0, H - strip_h - 0.28 * cm, W, 0.28 * cm, fill=1, stroke=0)
-    # Área clara do cabeçalho
+    # Área cinza clara — ocupa do topo até band_h
     c.setFillColor(colors.HexColor("#f1f5f9"))
-    c.rect(0, H - strip_h - 0.28 * cm - band_h, W, band_h, fill=1, stroke=0)
+    c.rect(0, H - band_h, W, band_h, fill=1, stroke=0)
 
-    # Logo no cabeçalho  (usa ImageReader para evitar erro de extensão com BytesIO)
-    _ir  = ImageReader(BytesIO(_logo_bytes))
+    # Logo centralizado
+    _ir    = ImageReader(BytesIO(_logo_bytes))
     iw, ih = _ir.getSize()
     if iw <= 0 or ih <= 0: iw = ih = 1
-    logo_w = 3.8 * cm
+    logo_w = 5.0 * cm
     logo_h = logo_w * (ih / iw)
-    logo_x = margem
-    logo_y = H - strip_h - 0.28 * cm - (band_h / 2) - (logo_h / 2)
-    c.drawImage(_ir, logo_x, logo_y,
-                width=logo_w, height=logo_h, mask="auto")
+    logo_x = (W - logo_w) / 2
+    logo_y = H - band_h + (band_h - logo_h) / 2
+    c.drawImage(_ir, logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
-    # Título à direita do logo
-    txt_x   = logo_x + logo_w + 0.7 * cm
-    titulo_y = H - strip_h - 0.28 * cm - 1.05 * cm
+    # Faixa escura logo abaixo da área cinza
+    faixa_y = H - band_h - faixa_h
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.setFont("Helvetica-Bold", 12.5)
-    c.drawString(txt_x, titulo_y, "JUSTIFICATIVA DE PONTO")
+    c.rect(0, faixa_y, W, faixa_h, fill=1, stroke=0)
 
-    c.setFont("Helvetica", 9)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(txt_x, titulo_y - 0.58 * cm, "Hospital Regional Sul")
+    texto_cy = faixa_y + faixa_h / 2 - 0.16 * cm
+    c.setFont("Helvetica-Bold", 10.5)
+    c.setFillColor(colors.white)
+    c.drawString(margem, texto_cy, "JUSTIFICATIVA DE PONTO")
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(colors.HexColor("#b0c4d8"))
+    c.drawRightString(W - margem, texto_cy, "Hospital Regional Sul")
 
     # Linha divisória
-    y = H - strip_h - 0.28 * cm - band_h - 0.75 * cm
+    y = faixa_y - 0.75 * cm
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.8)
     c.line(margem, y, W - margem, y)
 
-    y -= 1.2 * cm
+    y -= 1.1 * cm
 
     # ─────────────────────────────────────────────
     # SEÇÃO: DADOS DO PLANTÃO
@@ -592,37 +587,53 @@ if enviar:
     # SEÇÃO: ASSINATURA
     # ─────────────────────────────────────────────
     y -= 1.2 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 4.2 * cm)
+    y = _nova_pagina(c, W, H, margem, y, min_y + 4.5 * cm)
     y = _secao(y, "Assinatura do Médico")
 
-    sig_h    = 3.4 * cm
+    sig_h    = 3.8 * cm
     sig_left = margem
     sig_w    = W - 2 * margem
 
+    # Caixa com fundo sutil e borda leve
     c.setFillColor(colors.HexColor("#f8fafc"))
     c.setStrokeColor(colors.HexColor("#cbd5e1"))
     c.setLineWidth(0.9)
     c.roundRect(sig_left, y - sig_h, sig_w, sig_h, 9, stroke=1, fill=1)
 
-    # Barra lateral
+    # Barra lateral colorida (cor do logo)
     c.setFillColor(colors.HexColor(LOGO_COLOR))
     c.rect(sig_left, y - sig_h + 0.4 * cm, 0.15 * cm, sig_h - 0.8 * cm, fill=1, stroke=0)
 
-    tx = sig_left + 0.55 * cm
+    tx      = sig_left + 0.55 * cm
+    tx_end  = sig_left + sig_w - 0.45 * cm
 
-    c.setFont("Helvetica-Bold", 9.5)
+    # Nome em destaque
+    c.setFont("Helvetica-Bold", 11)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawString(tx, y - 0.55 * cm, assinatura)
+    c.drawString(tx, y - 0.60 * cm, assinatura)
 
-    c.setFont("Helvetica", 8)
+    # CRM abaixo do nome
+    c.setFont("Helvetica", 8.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(tx, y - 0.95 * cm, f"CRM: {crm}")
+    c.drawString(tx, y - 1.05 * cm, f"CRM: {crm}")
 
-    # Linha de assinatura
-    linha_y = y - 2.35 * cm
+    # Linha pontilhada de assinatura
+    linha_y = y - 2.45 * cm
     c.setStrokeColor(colors.HexColor(LOGO_COLOR))
-    c.setLineWidth(0.9)
-    c.line(tx, linha_y, sig_left + sig_w - 0.5 * cm, linha_y)
+    c.setLineWidth(0.8)
+    c.setDash([3, 4])
+    c.line(tx, linha_y, tx_end, linha_y)
+    c.setDash([])   # restaura linha sólida
+
+    # Label "Assinatura" abaixo da linha
+    c.setFont("Helvetica", 7)
+    c.setFillColor(colors.HexColor(SECTION))
+    c.drawString(tx, linha_y - 0.35 * cm, "Assinatura")
+
+    # Data do plantão alinhada à direita
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(colors.HexColor(MUTED))
+    c.drawRightString(tx_end, linha_y - 0.35 * cm, data_fmt)
 
     # ─────────────────────────────────────────────
     # RODAPÉ
