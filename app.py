@@ -68,7 +68,7 @@ st.markdown(
         .block-container {{
             padding-top: 2rem !important;
             padding-bottom: 3rem !important;
-            max-width: 700px !important;
+            max-width: 500px !important;
         }}
         /* ── Cabeçalho ── */
         .app-header {{
@@ -280,7 +280,7 @@ def fmt_duracao(td: timedelta) -> str:
     return f"{h:02d}h{m:02d}min"
 def nome_arquivo_seguro(nome: str, data_fmt: str) -> str:
     base = re.sub(r'[<>:"/\\|?*]', "_", nome).strip() or "documento"
-    return f"justificativa_{base}_{data_fmt.replace('/', '-')}.pdf"
+    return f"{base}_{data_fmt.replace('/', '-')}.pdf"
 def _nova_pagina(c, W, H, margem, y, min_y):
     if y >= min_y:
         return y
