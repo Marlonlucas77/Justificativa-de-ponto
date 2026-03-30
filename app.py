@@ -78,9 +78,9 @@ st.markdown(
             justify-content: center;
             gap: 1rem;
             margin-bottom: 1.4rem;
-            padding: 0.80rem 1.0rem 0.60rem;
+            padding: 0.70rem 0.9rem 0.30rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
-            border-radius: 16px;
+            border-radius: 14px;
             box-shadow: 0 6px 20px rgba(15,41,66,.26);
         }}
         .app-header-logo {{
