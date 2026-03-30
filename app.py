@@ -304,7 +304,7 @@ def _rodape_pdf(c, W, H):
     c.drawString(2 * cm, 1.12 * cm, "Hospital Regional Sul")
     c.setFont("Helvetica", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(2 * cm, 0.62 * cm, "Documento gerado eletronicamente · Não requer assinatura física")
+    c.drawString(2 * cm, 0.62 * cm, "Documento gerado eletronicamente")
     c.drawRightString(W - 2 * cm, 0.87 * cm, f"Emitido em {emissao}")
 # ==================================================
 # GOOGLE APPS SCRIPT — ENVIO VIA WEB APP
