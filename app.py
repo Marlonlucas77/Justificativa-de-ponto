@@ -73,11 +73,12 @@ st.markdown(
         /* ── Cabeçalho ── */
         .app-header {{
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             align-items: center;
-            gap: 1.4rem;
+            justify-content: center;
+            gap: 1rem;
             margin-bottom: 1.4rem;
-            padding: 1.4rem 1.8rem;
+            padding: 1.75rem 1.8rem 1.95rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
             border-radius: 16px;
             box-shadow: 0 6px 20px rgba(15,41,66,.26);
@@ -89,31 +90,37 @@ st.markdown(
             flex-shrink: 0;
         }}
         .app-header-divider {{
-            width: 1.5px;
-            height: 64px;
+            width: min(220px, 72%);
+            height: 1.5px;
             background: rgba(255,255,255,.22);
             flex-shrink: 0;
         }}
         .app-header-text {{
             display: flex;
             flex-direction: column;
-            gap: 0.2rem;
+            align-items: center;
+            gap: 0.35rem;
+            text-align: center;
+            width: 100%;
         }}
         .app-header-text h1 {{
-            font-size: 1.5rem !important;
+            font-size: 1.68rem !important;
             font-weight: 800 !important;
             color: #fff !important;
             margin: 0 !important;
-            letter-spacing: -0.025em;
-            line-height: 1.15;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            text-align: center !important;
+            width: 100%;
         }}
         .app-header-text .app-header-sub {{
             margin: 0 !important;
-            font-size: 0.85rem;
+            font-size: 0.86rem;
             font-weight: 400;
             color: rgba(255,255,255,.55);
             letter-spacing: 0.04em;
             text-transform: uppercase;
+            text-align: center;
         }}
         /* ── Seções ── */
         .form-section {{
@@ -313,17 +320,19 @@ def enviar_para_google(pdf_buffer: BytesIO, nome_arquivo: str, dados: dict) -> d
     pdf_buffer.seek(0)
     pdf_b64 = base64.b64encode(pdf_buffer.read()).decode("utf-8")
     payload = {
-        "nome":          dados["nome"],
-        "crm":           dados["crm"],
-        "setor":         dados["setor"],
-        "data_fmt":      dados["data_fmt"],
-        "hora_ent":      dados["hora_ent"],
-        "hora_sai":      dados["hora_sai"],
-        "duracao":       dados["duracao"],
-        "motivo":        dados["motivo"],
-        "assinatura":    dados["assinatura"],
-        "nome_arquivo":  nome_arquivo,
-        "pdf_base64":    pdf_b64,
+        "nome":             dados["nome"],
+        "crm":              dados["crm"],
+        "setor":            dados["setor"],
+        "data_fmt":         dados["data_fmt"],
+        "hora_ent":         dados["hora_ent"],
+        "hora_sai":         dados["hora_sai"],
+        "duracao":          dados["duracao"],
+        "motivo":           dados["motivo"],
+        "assinatura":       dados["assinatura"],
+        "nome_arquivo":     nome_arquivo,
+        "pdf_base64":       pdf_b64,
+        "titulo_planilha":  dados.get("titulo_planilha", "JUSTIFICATIVA DE PONTO"),
+        "logo_base64":      dados.get("logo_base64", ""),
     }
     resp = http_requests.post(
         apps_script_url,
@@ -342,7 +351,7 @@ if _logo_png:
     _b64 = base64.b64encode(_logo_png).decode()
     logo_html = (
         f'<img src="data:image/png;base64,{_b64}" '
-        f'style="height:110px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+        f'style="height:148px;width:auto;filter:brightness(0) invert(1);display:block;" />'
     )
 elif os.path.exists(LOGO_PATH):
     logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
@@ -376,7 +385,11 @@ with st.container(border=True):
         with ca:
             setor = st.selectbox("Setor *", SETOR_OPCOES)
         with cb:
-            data = st.date_input("Data *", format="DD/MM/YYYY")
+            data = st.date_input(
+                "Data *",
+                value=datetime.now(_BRT).date(),
+                format="DD/MM/YYYY",
+            )
         cd, ce = st.columns(2)
         with cd:
             hora_entrada = st.time_input("Entrada *", value=time(7, 0),  step=timedelta(minutes=15))
@@ -490,6 +503,7 @@ if enviar:
 
     y = cabecalho_base_y - 0.20 * cm - 1.0 * cm
     y -= 0.55 * cm
+    y -= 0.50 * cm
     # ─────────────────────────────────────────────────────────────
     # HELPERS PDF
     # ─────────────────────────────────────────────────────────────
@@ -504,8 +518,8 @@ if enviar:
         c.setLineWidth(0.5)
         c.line(margem + pill_w + 0.25 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
         return cy - 0.85 * cm
-    ROW_H      = 0.90 * cm
-    LINE_EXTRA = 0.50 * cm
+    ROW_H      = 1.02 * cm
+    LINE_EXTRA = 0.52 * cm
     LBL_W      = 3.4 * cm
     VAL_X      = margem + LBL_W
     def _campo(cy: float, label: str, valor: str, shade: bool) -> float:
@@ -574,13 +588,13 @@ if enviar:
     # ─────────────────────────────────────────────────────────────
     # BLOCO 2 — JUSTIFICATIVA
     # ─────────────────────────────────────────────────────────────
-    y -= 0.9 * cm
+    y -= 1.25 * cm
     y = _nova_pagina(c, W, H, margem, y, min_y + 3.0 * cm)
     y = _secao_titulo(y, "Justificativa")
     linhas_mot = quebrar_texto(motivo.strip(), limite=78)
-    line_h_mot = 18
-    pad_top    = 22
-    pad_bot    = 16
+    line_h_mot = 19
+    pad_top    = 26
+    pad_bot    = 22
     box_h      = len(linhas_mot) * line_h_mot + pad_top + pad_bot
     y = _nova_pagina(c, W, H, margem, y, min_y + box_h / 28.35 + 0.5 * cm)
     c.setFillColor(colors.HexColor("#fafbfc"))
@@ -600,10 +614,10 @@ if enviar:
     # ─────────────────────────────────────────────────────────────
     # BLOCO 3 — ASSINATURA
     # ─────────────────────────────────────────────────────────────
-    y -= 1.0 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 5.0 * cm)
+    y -= 1.35 * cm
+    y = _nova_pagina(c, W, H, margem, y, min_y + 3.5 * cm)
     y = _secao_titulo(y, "Assinatura do Médico")
-    sig_h = 3.6 * cm
+    sig_h = 3.05 * cm
     sig_w = W - 2 * margem
     cx = W / 2
     # Card de fundo
@@ -617,28 +631,28 @@ if enviar:
     # Nome da assinatura
     c.setFont("Helvetica-Bold", 13)
     c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, y - 0.85 * cm, assinatura.upper())
+    c.drawCentredString(cx, y - 0.78 * cm, assinatura.upper())
     # Linha decorativa
     line_w = 3.2 * cm
     c.setStrokeColor(colors.HexColor(LOGO_COLOR))
     c.setLineWidth(1.2)
-    c.line(cx - line_w, y - 1.15 * cm, cx + line_w, y - 1.15 * cm)
+    c.line(cx - line_w, y - 1.08 * cm, cx + line_w, y - 1.08 * cm)
     # CRM e setor
     c.setFont("Helvetica", 10.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 1.6 * cm, f"CRM {crm.upper()}  ·  {setor}")
+    c.drawCentredString(cx, y - 1.48 * cm, f"CRM {crm.upper()}  ·  {setor}")
     # Separador fino
     c.setStrokeColor(colors.HexColor(BORDER))
     c.setLineWidth(0.4)
-    c.line(cx - 4.0 * cm, y - 2.1 * cm, cx + 4.0 * cm, y - 2.1 * cm)
+    c.line(cx - 4.0 * cm, y - 1.88 * cm, cx + 4.0 * cm, y - 1.88 * cm)
     # Data/hora da assinatura
     horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
     c.setFont("Helvetica-Oblique", 9.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 2.6 * cm, f"Assinado eletronicamente em {horario_ass}")
+    c.drawCentredString(cx, y - 2.38 * cm, f"Assinado eletronicamente em {horario_ass}")
     # Ícone de verificação (pequeno círculo verde)
     c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.circle(cx - 3.8 * cm, y - 2.53 * cm, 0.12 * cm, fill=1, stroke=0)
+    c.circle(cx - 3.8 * cm, y - 2.32 * cm, 0.12 * cm, fill=1, stroke=0)
     y -= sig_h
     # ─────────────────────────────────────────────────────────────
     # RODAPÉ
@@ -656,15 +670,17 @@ if enviar:
                 pdf_buffer=buffer,
                 nome_arquivo=arquivo_nome,
                 dados={
-                    "nome":      nome,
-                    "crm":       crm,
-                    "setor":     setor,
-                    "data_fmt":  data_fmt,
-                    "hora_ent":  hora_ent,
-                    "hora_sai":  hora_sai,
-                    "duracao":   horas_dur,
-                    "motivo":    motivo.strip(),
-                    "assinatura": assinatura,
+                    "nome":            nome,
+                    "crm":             crm,
+                    "setor":           setor,
+                    "data_fmt":        data_fmt,
+                    "hora_ent":        hora_ent,
+                    "hora_sai":        hora_sai,
+                    "duracao":         horas_dur,
+                    "motivo":          motivo.strip(),
+                    "assinatura":      assinatura,
+                    "titulo_planilha": "JUSTIFICATIVA DE PONTO",
+                    "logo_base64":     base64.b64encode(_logo_bytes).decode("utf-8"),
                 },
             )
         if resultado.get("status") == "ok":
