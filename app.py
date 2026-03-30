@@ -68,7 +68,7 @@ st.markdown(
         .block-container {{
             padding-top: 2rem !important;
             padding-bottom: 3rem !important;
-            max-width: 500px !important;
+            max-width: 700px !important;
         }}
         /* ── Cabeçalho ── */
         .app-header {{
@@ -78,7 +78,7 @@ st.markdown(
             justify-content: center;
             gap: 1rem;
             margin-bottom: 1.4rem;
-            padding: 1.75rem 1.8rem 1.95rem;
+            padding: 1.00rem 1.8rem 1.95rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
             border-radius: 16px;
             box-shadow: 0 6px 20px rgba(15,41,66,.26);
