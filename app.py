@@ -81,7 +81,7 @@ st.markdown(
             padding: 0.70rem 0.9rem 0.30rem;
             background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
             border-radius: 14px;
-            box-shadow: 0 6px 20px rgba(15,41,66,.26);
+            box-shadow: 0 6px 18px rgba(15,41,66,.26);
         }}
         .app-header-logo {{
             display: flex;
