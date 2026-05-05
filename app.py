@@ -83,250 +83,339 @@ LOGO_COLOR = _cor_dominante_logo(LOGO_PATH)
 st.markdown(
     f"""
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
+
         html, body, [class*="css"] {{
-            font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: 'DM Sans', system-ui, sans-serif !important;
         }}
         .block-container {{
-            padding-top: 2rem !important;
+            padding-top: 1.6rem !important;
             padding-bottom: 3rem !important;
-            max-width: 700px !important;
+            max-width: 660px !important;
         }}
-        /* ── Cabeçalho ── */
+
+        /* ── Fundo da página levemente texturizado ── */
+        .stApp {{
+            background-color: #f0f4f8 !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           CABEÇALHO — horizontal, compacto
+        ══════════════════════════════════════════ */
         .app-header {{
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 1.4rem;
-            padding: 0.70rem 0.9rem 0.30rem;
-            background: linear-gradient(160deg, {PRIMARY} 0%, {ACCENT} 100%);
-            border-radius: 14px;
-            box-shadow: 0 6px 18px rgba(15,41,66,.26);
+            gap: 0.9rem;
+            padding: 0.65rem 1.1rem;
+            margin-bottom: 1.1rem;
+            background: {PRIMARY};
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(15,41,66,.22), inset 0 1px 0 rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.07);
         }}
-        .app-header-logo {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+        .app-header-logo img {{
+            height: 36px;
+            width: auto;
+            display: block;
+            filter: brightness(0) invert(1);
+            opacity: 0.95;
         }}
-        .app-header-divider {{
-            width: min(220px, 72%);
-            height: 1.5px;
-            background: rgba(255,255,255,.22);
+        .app-header-sep {{
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,.15);
             flex-shrink: 0;
         }}
         .app-header-text {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.35rem;
-            text-align: center;
-            width: 100%;
+            flex: 1;
+            min-width: 0;
         }}
         .app-header-text h1 {{
-            font-size: 1.68rem !important;
-            font-weight: 800 !important;
+            font-size: 1.0rem !important;
+            font-weight: 700 !important;
             color: #fff !important;
             margin: 0 !important;
-            letter-spacing: -0.02em;
-            line-height: 1.2;
-            text-align: center !important;
-            width: 100%;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }}
         .app-header-text .app-header-sub {{
-            margin: 0 !important;
-            font-size: 0.86rem;
+            margin: 0.1rem 0 0 0 !important;
+            font-size: 0.72rem;
             font-weight: 400;
-            color: rgba(255,255,255,.55);
-            letter-spacing: 0.04em;
+            color: rgba(255,255,255,.45);
+            letter-spacing: 0.06em;
             text-transform: uppercase;
-            text-align: center;
         }}
-        /* ── Seções ── */
+        /* Badge "documento oficial" no canto direito do header */
+        .app-header-badge {{
+            margin-left: auto;
+            flex-shrink: 0;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 6px;
+            padding: 0.22rem 0.6rem;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: rgba(255,255,255,.5);
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }}
+
+        /* ══════════════════════════════════════════
+           HINT / CAPTION
+        ══════════════════════════════════════════ */
+        .stCaption p {{
+            font-size: 0.78rem !important;
+            color: {MUTED} !important;
+            margin-bottom: 0.6rem !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           CARD DO FORMULÁRIO
+        ══════════════════════════════════════════ */
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+            background: #ffffff !important;
+            border-radius: 14px !important;
+            border: 1px solid #dde3eb !important;
+            box-shadow: 0 1px 4px rgba(15,41,66,.06), 0 4px 18px rgba(15,41,66,.05) !important;
+            padding: 1.35rem 1.45rem 1.5rem !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           LABELS DOS CAMPOS
+        ══════════════════════════════════════════ */
+        label[data-testid="stWidgetLabel"] p,
+        .stTextInput label p,
+        .stSelectbox label p,
+        .stDateInput label p,
+        .stTimeInput label p,
+        .stTextArea label p {{
+            font-size: 0.78rem !important;
+            font-weight: 600 !important;
+            color: #374151 !important;
+            letter-spacing: 0.01em !important;
+            margin-bottom: 0.18rem !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           INPUTS
+        ══════════════════════════════════════════ */
+        [data-baseweb="input"] input,
+        [data-baseweb="textarea"] textarea,
+        [data-baseweb="select"] div,
+        [data-testid="stDateInput"] input,
+        div[data-baseweb="datepicker"] input {{
+            border-radius: 8px !important;
+            font-size: 0.88rem !important;
+            border-color: #d1d9e0 !important;
+            background: #fafbfc !important;
+        }}
+        [data-baseweb="input"] input:focus,
+        [data-baseweb="textarea"] textarea:focus {{
+            border-color: {LOGO_COLOR} !important;
+            box-shadow: 0 0 0 3px {LOGO_COLOR}22 !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           SEÇÕES DO FORMULÁRIO
+        ══════════════════════════════════════════ */
         .form-section {{
             display: flex;
             align-items: center;
-            gap: 0.55rem;
-            font-size: 0.7rem;
+            gap: 0.5rem;
+            font-size: 0.67rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.13em;
+            letter-spacing: 0.14em;
             color: {SECTION};
-            margin: 1.3rem 0 0.7rem 0;
-            padding-bottom: 0.4rem;
-            border-bottom: 1.5px solid {BORDER};
+            margin: 1.2rem 0 0.65rem 0;
+            padding-bottom: 0.38rem;
+            border-bottom: 1px solid {BORDER};
         }}
-        .form-section::before {{
-            content: "";
-            display: inline-block;
-            width: 3px;
-            height: 13px;
+        .form-section-dot {{
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
             background: {LOGO_COLOR};
-            border-radius: 2px;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 3px {LOGO_COLOR}28;
         }}
-        /* ── Cartão do formulário ── */
-        div[data-testid="stVerticalBlockBorderWrapper"] {{
-            background: #fff !important;
-            border-radius: 16px !important;
-            border: 1.5px solid {BORDER} !important;
-            box-shadow: 0 2px 12px rgba(15,41,66,.07) !important;
-            padding: 1.4rem 1.5rem 1.5rem 1.5rem !important;
-        }}
-        /* ── Botão enviar ── */
+
+        /* ══════════════════════════════════════════
+           BOTÃO ENVIAR
+        ══════════════════════════════════════════ */
         div[data-testid="stFormSubmitButton"] button {{
             width: 100%;
-            border-radius: 10px !important;
+            border-radius: 9px !important;
             font-weight: 600 !important;
-            font-size: 0.95rem !important;
-            padding: 0.7rem 1rem !important;
-            background: linear-gradient(180deg, {LOGO_COLOR} 0%, {PRIMARY} 100%) !important;
+            font-size: 0.88rem !important;
+            padding: 0.62rem 1rem !important;
+            background: {PRIMARY} !important;
             color: white !important;
             border: none !important;
-            box-shadow: 0 3px 10px rgba(15,41,66,.28);
-            margin-top: 0.5rem;
-            letter-spacing: 0.01em;
+            box-shadow: 0 2px 8px rgba(15,41,66,.30), inset 0 1px 0 rgba(255,255,255,.10) !important;
+            margin-top: 0.55rem;
+            letter-spacing: 0.02em;
+            transition: filter .15s, box-shadow .15s;
         }}
         div[data-testid="stFormSubmitButton"] button:hover {{
-            filter: brightness(1.07);
-            box-shadow: 0 5px 14px rgba(15,41,66,.32);
+            filter: brightness(1.10) !important;
+            box-shadow: 0 4px 14px rgba(15,41,66,.38) !important;
         }}
-        /* ── Botão download ── */
+        /* Faixa de cor accent no topo do botão */
+        div[data-testid="stFormSubmitButton"] button::before {{
+            content: "";
+            display: block;
+            height: 2px;
+            border-radius: 2px 2px 0 0;
+            background: {LOGO_COLOR};
+            position: absolute;
+            top: 0; left: 0; right: 0;
+        }}
+        div[data-testid="stFormSubmitButton"] button {{ position: relative; overflow: hidden; }}
+
+        /* ══════════════════════════════════════════
+           BOTÃO DOWNLOAD
+        ══════════════════════════════════════════ */
         .stDownloadButton button {{
-            border-radius: 10px !important;
+            border-radius: 9px !important;
             font-weight: 600 !important;
-            font-size: 0.95rem !important;
+            font-size: 0.88rem !important;
             width: 100%;
         }}
-        /* ── Card de sucesso ── */
+
+        /* ══════════════════════════════════════════
+           BOTÃO SECUNDÁRIO (nova justificativa)
+        ══════════════════════════════════════════ */
+        .stButton > button {{
+            border-radius: 9px !important;
+            font-weight: 600 !important;
+            font-size: 0.88rem !important;
+            border: 1.5px solid #d1d9e0 !important;
+            color: {PRIMARY} !important;
+            background: #fff !important;
+        }}
+        .stButton > button:hover {{
+            border-color: {LOGO_COLOR} !important;
+            color: {LOGO_COLOR} !important;
+            background: #f5feff !important;
+        }}
+
+        /* ══════════════════════════════════════════
+           CARD DE SUCESSO
+        ══════════════════════════════════════════ */
         .success-card {{
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border: 1.5px solid #86efac;
-            border-radius: 16px;
-            padding: 1.8rem 1.6rem;
-            margin: 1.2rem 0;
-            box-shadow: 0 4px 20px rgba(22,101,52,.10);
+            background: #fff;
+            border: 1px solid #bbf7d0;
+            border-top: 3px solid #22c55e;
+            border-radius: 12px;
+            padding: 1.4rem 1.4rem 1.3rem;
+            margin: 0.8rem 0 1rem;
+            box-shadow: 0 2px 12px rgba(22,101,52,.08);
         }}
         .success-card-header {{
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.1rem;
+            gap: 0.7rem;
+            margin-bottom: 1rem;
         }}
         .success-icon {{
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #16a34a, #166534);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem;
             flex-shrink: 0;
-            box-shadow: 0 3px 10px rgba(22,101,52,.30);
+            box-shadow: 0 2px 8px rgba(22,101,52,.28);
         }}
         .success-title {{
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #14532d;
-            margin: 0;
-            line-height: 1.2;
+            font-size: 1.0rem; font-weight: 700;
+            color: #14532d; margin: 0; line-height: 1.25;
         }}
         .success-subtitle {{
-            font-size: 0.82rem;
-            color: #16a34a;
-            margin: 0.15rem 0 0 0;
-            font-weight: 500;
+            font-size: 0.76rem; color: #16a34a;
+            margin: 0.12rem 0 0 0; font-weight: 500;
         }}
         .success-protocol {{
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            background: #fff;
-            border: 1px solid #86efac;
-            border-radius: 8px;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.8rem;
+            gap: 0.35rem;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 0.28rem 0.65rem;
+            font-size: 0.75rem;
             color: #166534;
-            font-family: "Courier New", monospace;
-            font-weight: 700;
-            margin-bottom: 1.2rem;
-            letter-spacing: 0.05em;
+            font-family: 'DM Mono', 'Courier New', monospace;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            letter-spacing: 0.04em;
         }}
         .success-grid {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0.6rem;
-            margin-top: 0.2rem;
+            gap: 0.5rem;
         }}
         .success-field {{
-            background: rgba(255,255,255,0.7);
-            border-radius: 8px;
-            padding: 0.55rem 0.75rem;
-            border: 1px solid rgba(134,239,172,.5);
+            background: #f8fafc;
+            border-radius: 7px;
+            padding: 0.5rem 0.65rem;
+            border: 1px solid #e9eef4;
         }}
         .success-field-label {{
-            font-size: 0.68rem;
+            font-size: 0.63rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.09em;
             color: #16a34a;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.18rem;
         }}
         .success-field-value {{
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 600;
-            color: #14532d;
+            color: #1e293b;
             word-break: break-word;
         }}
-        .success-field.full {{
-            grid-column: 1 / -1;
-        }}
-        /* ── Botão nova justificativa ── */
-        .stButton > button {{
-            border-radius: 10px !important;
-            font-weight: 600 !important;
-            font-size: 0.92rem !important;
-        }}
-        /* ── Alerta de duplicata ── */
+        .success-field.full {{ grid-column: 1 / -1; }}
+
+        /* ══════════════════════════════════════════
+           ALERTA DUPLICATA
+        ══════════════════════════════════════════ */
         .dup-warning {{
             background: #fffbeb;
-            border: 1.5px solid #fcd34d;
-            border-radius: 12px;
-            padding: 1rem 1.2rem;
-            margin: 0.5rem 0 1rem 0;
-            display: flex;
-            gap: 0.7rem;
-            align-items: flex-start;
+            border: 1px solid #fcd34d;
+            border-left: 3px solid #f59e0b;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            margin: 0.4rem 0 0.9rem;
+            display: flex; gap: 0.65rem; align-items: flex-start;
         }}
-        .dup-warning-icon {{ font-size: 1.3rem; flex-shrink: 0; margin-top: 0.05rem; }}
-        .dup-warning-body {{ font-size: 0.88rem; color: #92400e; line-height: 1.5; }}
+        .dup-warning-icon {{ font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }}
+        .dup-warning-body {{ font-size: 0.83rem; color: #92400e; line-height: 1.55; }}
         .dup-warning-body strong {{ color: #78350f; }}
-        /* ── Rodapé ── */
+
+        /* ══════════════════════════════════════════
+           RODAPÉ
+        ══════════════════════════════════════════ */
         .app-foot {{
             text-align: center;
-            font-size: 0.76rem;
-            color: {MUTED};
-            margin-top: 2rem;
-            padding-top: 1rem;
+            font-size: 0.72rem;
+            color: #a0aec0;
+            margin-top: 1.8rem;
+            padding-top: 0.9rem;
             border-top: 1px solid {BORDER};
+            letter-spacing: 0.01em;
         }}
+
+        /* ── misc ── */
         [data-testid="stImage"] img,
-        [data-testid="stImage"] picture img {{
-            background: transparent !important;
-        }}
+        [data-testid="stImage"] picture img,
         [data-testid="stImage"] {{
             background: transparent !important;
-        }}
-        [data-baseweb="input"] input,
-        [data-baseweb="textarea"] textarea,
-        [data-baseweb="select"] div {{
-            border-radius: 8px !important;
-        }}
-        [data-testid="stDateInput"] input,
-        [data-testid="stDateInput"] fieldset,
-        div[data-baseweb="datepicker"] input {{
-            border-radius: 8px !important;
         }}
     </style>
     """,
@@ -536,25 +625,30 @@ def enviar_para_google(pdf_buffer: BytesIO, nome_arquivo: str, dados: dict) -> d
 # CABEÇALHO DA PÁGINA (APP)
 # ==================================================
 _logo_png = logo_transparente_png(LOGO_PATH)
-logo_html = ""
+_logo_inner = ""
 if _logo_png:
     _b64 = base64.b64encode(_logo_png).decode()
-    logo_html = (
-        f'<img src="data:image/png;base64,{_b64}" '
-        f'style="height:148px;width:auto;filter:brightness(0) invert(1);display:block;" />'
+    _logo_inner = (
+        f'<div class="app-header-logo">'
+        f'<img src="data:image/png;base64,{_b64}" /></div>'
+        f'<div class="app-header-sep"></div>'
     )
 elif os.path.exists(LOGO_PATH):
-    logo_html = '<span style="color:rgba(255,255,255,.5);font-size:0.8rem;">Logo</span>'
+    _logo_inner = (
+        '<div class="app-header-logo">'
+        '<span style="color:rgba(255,255,255,.4);font-size:0.75rem;font-weight:700;letter-spacing:.06em;">HRS</span>'
+        '</div><div class="app-header-sep"></div>'
+    )
 
 st.markdown(
     f"""
     <div class="app-header">
-        <div class="app-header-logo">{logo_html}</div>
-        <div class="app-header-divider"></div>
+        {_logo_inner}
         <div class="app-header-text">
             <h1>Justificativa de Ponto</h1>
             <p class="app-header-sub">Hospital Regional Sul</p>
         </div>
+        <div class="app-header-badge">Documento Oficial</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -645,14 +739,14 @@ st.caption("Preencha todos os campos obrigatórios (*) e clique em **Enviar rela
 
 with st.container(border=True):
     with st.form("formulario"):
-        st.markdown('<p class="form-section">Identificação</p>', unsafe_allow_html=True)
+        st.markdown('<p class="form-section"><span class="form-section-dot"></span>Identificação</p>', unsafe_allow_html=True)
         c1, c2 = st.columns([3, 2])
         with c1:
             nome = st.text_input("Nome do médico *", placeholder="Nome completo")
         with c2:
             crm  = st.text_input("CRM *", placeholder="Ex.: 12345")
 
-        st.markdown('<p class="form-section">Dados do Plantão</p>', unsafe_allow_html=True)
+        st.markdown('<p class="form-section"><span class="form-section-dot"></span>Dados do Plantão</p>', unsafe_allow_html=True)
         ca, cb = st.columns([3, 2])
         with ca:
             setor = st.selectbox("Setor *", SETOR_OPCOES)
@@ -669,7 +763,7 @@ with st.container(border=True):
         with ce:
             hora_saida   = st.time_input("Saída *",   value=time(19, 0), step=timedelta(minutes=15))
 
-        st.markdown('<p class="form-section">Justificativa</p>', unsafe_allow_html=True)
+        st.markdown('<p class="form-section"><span class="form-section-dot"></span>Justificativa</p>', unsafe_allow_html=True)
         motivo = st.text_area(
             "Motivo *",
             height=150,
@@ -679,7 +773,7 @@ with st.container(border=True):
             ),
         )
 
-        st.markdown('<p class="form-section">Assinatura</p>', unsafe_allow_html=True)
+        st.markdown('<p class="form-section"><span class="form-section-dot"></span>Assinatura</p>', unsafe_allow_html=True)
         cf, cg = st.columns([3, 2])
         with cf:
             assinatura = st.text_input(
