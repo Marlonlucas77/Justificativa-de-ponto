@@ -228,6 +228,19 @@ st.markdown(
             font-size: 0.88rem !important;
             border-color: #d1d9e0 !important;
             background: #fafbfc !important;
+            color: #1e293b !important;
+        }}
+        /* placeholder */
+        [data-baseweb="input"] input::placeholder,
+        [data-baseweb="textarea"] textarea::placeholder {{
+            color: #a0aec0 !important;
+            opacity: 1 !important;
+        }}
+        /* texto digitado em select/dropdown */
+        [data-baseweb="select"] [data-testid="stSelectbox"] span,
+        [data-baseweb="select"] div[aria-selected],
+        [data-baseweb="select"] span {{
+            color: #1e293b !important;
         }}
         [data-baseweb="input"] input:focus,
         [data-baseweb="textarea"] textarea:focus {{
