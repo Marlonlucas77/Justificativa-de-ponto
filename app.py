@@ -105,62 +105,74 @@ st.markdown(
         .app-header {{
             display: flex;
             align-items: center;
-            gap: 0.9rem;
-            padding: 0.65rem 1.1rem;
-            margin-bottom: 1.1rem;
+            gap: 0.85rem;
+            padding: 0.7rem 1.0rem;
+            margin-bottom: 1.0rem;
             background: {PRIMARY};
             border-radius: 12px;
             box-shadow: 0 4px 16px rgba(15,41,66,.22), inset 0 1px 0 rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.07);
+            min-height: 0;
+        }}
+        .app-header-logo {{
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
         }}
         .app-header-logo img {{
-            height: 36px;
+            height: 32px;
             width: auto;
             display: block;
             filter: brightness(0) invert(1);
-            opacity: 0.95;
+            opacity: 0.92;
         }}
         .app-header-sep {{
             width: 1px;
-            height: 28px;
-            background: rgba(255,255,255,.15);
+            height: 24px;
+            background: rgba(255,255,255,.18);
             flex-shrink: 0;
         }}
         .app-header-text {{
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0;
         }}
         .app-header-text h1 {{
-            font-size: 1.0rem !important;
+            font-size: 0.95rem !important;
             font-weight: 700 !important;
             color: #fff !important;
-            margin: 0 !important;
+            margin: 0 0 0.1rem 0 !important;
             letter-spacing: -0.01em;
-            line-height: 1.25;
+            line-height: 1.2 !important;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
         .app-header-text .app-header-sub {{
-            margin: 0.1rem 0 0 0 !important;
-            font-size: 0.72rem;
+            margin: 0 !important;
+            font-size: 0.68rem;
             font-weight: 400;
-            color: rgba(255,255,255,.45);
-            letter-spacing: 0.06em;
+            color: rgba(255,255,255,.42);
+            letter-spacing: 0.07em;
             text-transform: uppercase;
+            line-height: 1;
+            white-space: nowrap;
         }}
         /* Badge "documento oficial" no canto direito do header */
         .app-header-badge {{
             margin-left: auto;
             flex-shrink: 0;
-            background: rgba(255,255,255,.08);
-            border: 1px solid rgba(255,255,255,.14);
-            border-radius: 6px;
-            padding: 0.22rem 0.6rem;
-            font-size: 0.65rem;
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.13);
+            border-radius: 5px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.6rem;
             font-weight: 600;
-            color: rgba(255,255,255,.5);
-            letter-spacing: 0.07em;
+            color: rgba(255,255,255,.42);
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             white-space: nowrap;
         }}
@@ -168,9 +180,12 @@ st.markdown(
         /* ══════════════════════════════════════════
            HINT / CAPTION
         ══════════════════════════════════════════ */
-        .stCaption p {{
+        .stCaption, .stCaption p,
+        [data-testid="stCaptionContainer"] p,
+        div[data-testid="stMarkdownContainer"] p small,
+        small {{
             font-size: 0.78rem !important;
-            color: {MUTED} !important;
+            color: #64748b !important;
             margin-bottom: 0.6rem !important;
         }}
 
