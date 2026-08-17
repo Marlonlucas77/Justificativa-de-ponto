@@ -41,6 +41,9 @@ for _k, _v in {
     "ultimo_resumo":    None,    # Dict com dados do último envio (para o card)
     # Chave de dedup: "CRM|DATA|HORA_ENT|HORA_SAI" — impede reenvio na sessão
     "chaves_enviadas":  set(),
+    # Controle do envio em duas etapas (evita clique duplo / dá feedback visível)
+    "processando":       False,  # True enquanto o envio está em andamento
+    "dados_pendentes":   None,   # Snapshot dos campos do formulário a processar
 }.items():
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -853,7 +856,11 @@ with st.container(border=True):
                 unsafe_allow_html=True,
             )
 
-        enviar = st.form_submit_button("📄  Enviar relatório", use_container_width=True)
+        enviar = st.form_submit_button(
+            "⏳  Enviando, aguarde..." if st.session_state.processando else "📄  Enviar relatório",
+            use_container_width=True,
+            disabled=st.session_state.processando,
+        )
 
 st.markdown(
     '<p class="app-foot">Em caso de dúvidas, contate a administração · Hospital Regional Sul</p>',
@@ -861,10 +868,12 @@ st.markdown(
 )
 
 # ==================================================
-# PROCESSAMENTO DO ENVIO
+# ETAPA 1 — CLIQUE NO BOTÃO: valida campos, guarda os dados e força
+# um rerender imediato com o botão desabilitado ("Enviando...").
+# O processamento pesado (PDF + envio) só acontece na Etapa 2, abaixo,
+# já com o botão travado — assim o usuário nunca consegue clicar 2x.
 # ==================================================
-if enviar:
-    # ── 1. Validação de campos obrigatórios ─────────────────────
+if enviar and not st.session_state.processando:
     erros = []
     if not nome.strip():       erros.append("Nome do médico")
     if not crm.strip():        erros.append("CRM")
@@ -875,46 +884,83 @@ if enviar:
         st.error(f"Campos obrigatórios não preenchidos: **{', '.join(erros)}**.")
         st.stop()
 
-    # ── 2. Logo ──────────────────────────────────────────────────
-    if not os.path.exists(LOGO_PATH):
-        st.error(f"Logo não encontrada em `{LOGO_PATH}`. Verifique o caminho.")
-        st.stop()
+    st.session_state.dados_pendentes = {
+        "nome": nome, "crm": crm, "setor": setor, "data": data,
+        "hora_entrada": hora_entrada, "hora_saida": hora_saida,
+        "motivo": motivo, "assinatura": assinatura,
+    }
+    st.session_state.processando = True
+    st.rerun()
 
-    _logo_bytes = logo_transparente_png(LOGO_PATH)
-    if _logo_bytes is None:
-        with open(LOGO_PATH, "rb") as _lf:
-            _logo_bytes = _lf.read()
+# ==================================================
+# ETAPA 2 — PROCESSAMENTO REAL (roda no rerender seguinte, com o botão
+# já desabilitado na tela). Mostra passo a passo em st.status().
+# ==================================================
+if st.session_state.processando and st.session_state.dados_pendentes:
+    dp           = st.session_state.dados_pendentes
+    nome         = dp["nome"]
+    crm          = dp["crm"]
+    setor        = dp["setor"]
+    data         = dp["data"]
+    hora_entrada = dp["hora_entrada"]
+    hora_saida   = dp["hora_saida"]
+    motivo       = dp["motivo"]
+    assinatura   = dp["assinatura"]
 
-    # ── 3. Derivações ────────────────────────────────────────────
-    data_fmt  = data.strftime("%d/%m/%Y")
-    hora_ent  = hora_entrada.strftime("%H:%M")
-    hora_sai  = hora_saida.strftime("%H:%M")
-    td_dur    = duracao_plantao(data, hora_entrada, hora_saida)
-    horas_dur = fmt_duracao(td_dur)
-    chave     = chave_dedup(crm, data_fmt, hora_ent, hora_sai)
+    def _cancelar_processamento():
+        """Libera o botão de envio novamente (usado em qualquer saída antes do sucesso)."""
+        st.session_state.processando     = False
+        st.session_state.dados_pendentes = None
 
-    # ── 4. Proteção contra duplicata — camada FRONTEND ───────────
-    if chave in st.session_state.chaves_enviadas:
-        st.markdown(
-            f"""
-            <div class="dup-warning">
-                <div class="dup-warning-icon">⚠️</div>
-                <div class="dup-warning-body">
-                    <strong>Justificativa já enviada nesta sessão.</strong><br>
-                    Já existe um registro para o CRM <strong>{crm.strip().upper()}</strong>
-                    no dia <strong>{data_fmt}</strong>
-                    das <strong>{hora_ent}</strong> às <strong>{hora_sai}</strong>.<br>
-                    Caso precise corrigir algo, entre em contato com a administração.
+    with st.status("Processando sua justificativa...", expanded=True) as status:
+
+        # ── 2. Logo ──────────────────────────────────────────────
+        st.write("🖼️ Carregando identidade visual...")
+        if not os.path.exists(LOGO_PATH):
+            status.update(label="Erro: logo não encontrada", state="error")
+            _cancelar_processamento()
+            st.error(f"Logo não encontrada em `{LOGO_PATH}`. Verifique o caminho.")
+            st.stop()
+
+        _logo_bytes = logo_transparente_png(LOGO_PATH)
+        if _logo_bytes is None:
+            with open(LOGO_PATH, "rb") as _lf:
+                _logo_bytes = _lf.read()
+
+        # ── 3. Derivações ────────────────────────────────────────
+        data_fmt  = data.strftime("%d/%m/%Y")
+        hora_ent  = hora_entrada.strftime("%H:%M")
+        hora_sai  = hora_saida.strftime("%H:%M")
+        td_dur    = duracao_plantao(data, hora_entrada, hora_saida)
+        horas_dur = fmt_duracao(td_dur)
+        chave     = chave_dedup(crm, data_fmt, hora_ent, hora_sai)
+
+        # ── 4. Proteção contra duplicata — camada FRONTEND ───────
+        if chave in st.session_state.chaves_enviadas:
+            status.update(label="Duplicidade detectada", state="error")
+            _cancelar_processamento()
+            st.markdown(
+                f"""
+                <div class="dup-warning">
+                    <div class="dup-warning-icon">⚠️</div>
+                    <div class="dup-warning-body">
+                        <strong>Justificativa já enviada nesta sessão.</strong><br>
+                        Já existe um registro para o CRM <strong>{crm.strip().upper()}</strong>
+                        no dia <strong>{data_fmt}</strong>
+                        das <strong>{hora_ent}</strong> às <strong>{hora_sai}</strong>.<br>
+                        Caso precise corrigir algo, entre em contato com a administração.
+                    </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.stop()
+                """,
+                unsafe_allow_html=True,
+            )
+            st.stop()
 
-    # ── 5. Proteção contra duplicata — camada REMOTA (planilha) ──
-    with st.spinner("Verificando registros existentes..."):
+        # ── 5. Proteção contra duplicata — camada REMOTA (planilha) ──
+        st.write("🔎 Verificando registros existentes na planilha...")
         if verificar_duplicata_remota(crm, data_fmt, hora_ent, hora_sai):
+            status.update(label="Registro duplicado na planilha", state="error")
+            _cancelar_processamento()
             st.markdown(
                 f"""
                 <div class="dup-warning">
@@ -933,210 +979,212 @@ if enviar:
             )
             st.stop()
 
-    # ── 6. Gera protocolo único ───────────────────────────────────
-    protocolo = gerar_protocolo()
+        # ── 6. Gera protocolo único ───────────────────────────────
+        protocolo = gerar_protocolo()
 
-    # ── 7. Geração do PDF ─────────────────────────────────────────
-    buffer = BytesIO()
-    c      = canvas.Canvas(buffer, pagesize=A4)
-    W, H   = A4
-    margem = 2.0 * cm
-    min_y  = 2.2 * cm
+        # ── 7. Geração do PDF ──────────────────────────────────────
+        st.write("📄 Gerando o PDF da justificativa...")
+        buffer = BytesIO()
+        c      = canvas.Canvas(buffer, pagesize=A4)
+        W, H   = A4
+        margem = 2.0 * cm
+        min_y  = 2.2 * cm
 
-    # — Cabeçalho PDF —
-    iw, ih = ImageReader(BytesIO(_logo_bytes)).getSize()
-    if iw <= 0 or ih <= 0:
-        iw = ih = 1
-    logo_w = 4.4 * cm
-    logo_h = logo_w * (ih / iw)
-    logo_x = (W - logo_w) / 2
-    logo_y = H - 1.0 * cm - logo_h
-    titulo_y    = logo_y - 0.80 * cm
-    subtitulo_y = titulo_y - 0.62 * cm
-    protocolo_y = subtitulo_y - 0.52 * cm
-    cabecalho_base_y = protocolo_y - 0.50 * cm
-    hdr_h = H - cabecalho_base_y
+        # — Cabeçalho PDF —
+        iw, ih = ImageReader(BytesIO(_logo_bytes)).getSize()
+        if iw <= 0 or ih <= 0:
+            iw = ih = 1
+        logo_w = 4.4 * cm
+        logo_h = logo_w * (ih / iw)
+        logo_x = (W - logo_w) / 2
+        logo_y = H - 1.0 * cm - logo_h
+        titulo_y    = logo_y - 0.80 * cm
+        subtitulo_y = titulo_y - 0.62 * cm
+        protocolo_y = subtitulo_y - 0.52 * cm
+        cabecalho_base_y = protocolo_y - 0.50 * cm
+        hdr_h = H - cabecalho_base_y
 
-    c.setFillColor(colors.white)
-    c.rect(0, cabecalho_base_y, W, hdr_h, fill=1, stroke=0)
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.rect(0, cabecalho_base_y - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
-
-    c.drawImage(
-        ImageReader(BytesIO(_logo_bytes)),
-        logo_x, logo_y,
-        width=logo_w, height=logo_h,
-        mask="auto", preserveAspectRatio=True,
-    )
-
-    cx = W / 2
-    c.setFont("Helvetica-Bold", 17)
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, titulo_y, "JUSTIFICATIVA DE PONTO")
-    c.setFont("Helvetica", 11)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, subtitulo_y, "Hospital Regional Sul")
-    # Protocolo no cabeçalho do PDF
-    c.setFont("Helvetica-Oblique", 8.5)
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.drawCentredString(cx, protocolo_y, f"Protocolo: {protocolo}")
-
-    y = cabecalho_base_y - 0.20 * cm - 1.0 * cm
-    y -= 0.55 * cm
-    y -= 0.50 * cm
-
-    # — Helpers de campos PDF —
-    ROW_H      = 1.02 * cm
-    LINE_EXTRA = 0.52 * cm
-    LBL_W      = 3.4 * cm
-    VAL_X      = margem + LBL_W
-
-    def _secao_titulo(cy: float, titulo: str) -> float:
-        pill_w = c.stringWidth(titulo.upper(), "Helvetica-Bold", 8) + 0.8 * cm
-        c.setFillColor(colors.HexColor(PRIMARY))
-        c.roundRect(margem, cy - 0.05 * cm, pill_w, 0.52 * cm, 4, fill=1, stroke=0)
-        c.setFont("Helvetica-Bold", 8)
         c.setFillColor(colors.white)
-        c.drawString(margem + 0.35 * cm, cy + 0.11 * cm, titulo.upper())
-        c.setStrokeColor(colors.HexColor(BORDER))
-        c.setLineWidth(0.5)
-        c.line(margem + pill_w + 0.25 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
-        return cy - 0.85 * cm
+        c.rect(0, cabecalho_base_y, W, hdr_h, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.rect(0, cabecalho_base_y - 0.20 * cm, W, 0.20 * cm, fill=1, stroke=0)
 
-    def _campo(cy: float, label: str, valor: str, shade: bool) -> float:
-        linhas_v = quebrar_texto(str(valor), limite=42)
-        rh = max(ROW_H, 0.44 * cm + max(0, len(linhas_v) - 1) * LINE_EXTRA + 0.20 * cm)
-        if shade:
-            c.setFillColor(colors.HexColor("#f0f4f8"))
-            c.rect(margem, cy - rh + 0.08 * cm, W - 2 * margem, rh, fill=1, stroke=0)
-        c.setFont("Helvetica-Bold", 11)
+        c.drawImage(
+            ImageReader(BytesIO(_logo_bytes)),
+            logo_x, logo_y,
+            width=logo_w, height=logo_h,
+            mask="auto", preserveAspectRatio=True,
+        )
+
+        cx = W / 2
+        c.setFont("Helvetica-Bold", 17)
         c.setFillColor(colors.HexColor(PRIMARY))
-        c.drawString(margem + 0.35 * cm, cy - 0.52 * cm, label.upper())
-        c.setFont("Helvetica", 11.5)
-        c.setFillColor(colors.HexColor("#1e293b"))
-        for j, lv in enumerate(linhas_v):
-            c.drawString(VAL_X, cy - 0.52 * cm - j * LINE_EXTRA, lv)
-        c.setStrokeColor(colors.HexColor(BORDER))
-        c.setLineWidth(0.35)
-        c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
-        return cy - rh
+        c.drawCentredString(cx, titulo_y, "JUSTIFICATIVA DE PONTO")
+        c.setFont("Helvetica", 11)
+        c.setFillColor(colors.HexColor(MUTED))
+        c.drawCentredString(cx, subtitulo_y, "Hospital Regional Sul")
+        # Protocolo no cabeçalho do PDF
+        c.setFont("Helvetica-Oblique", 8.5)
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.drawCentredString(cx, protocolo_y, f"Protocolo: {protocolo}")
 
-    def _campo_2col(cy: float, pares: list[tuple]) -> float:
-        rh = ROW_H
-        col_w = (W - 2 * margem) / 2
-        for i, (label, valor, shade) in enumerate(pares):
-            ox = margem + i * col_w
+        y = cabecalho_base_y - 0.20 * cm - 1.0 * cm
+        y -= 0.55 * cm
+        y -= 0.50 * cm
+
+        # — Helpers de campos PDF —
+        ROW_H      = 1.02 * cm
+        LINE_EXTRA = 0.52 * cm
+        LBL_W      = 3.4 * cm
+        VAL_X      = margem + LBL_W
+
+        def _secao_titulo(cy: float, titulo: str) -> float:
+            pill_w = c.stringWidth(titulo.upper(), "Helvetica-Bold", 8) + 0.8 * cm
+            c.setFillColor(colors.HexColor(PRIMARY))
+            c.roundRect(margem, cy - 0.05 * cm, pill_w, 0.52 * cm, 4, fill=1, stroke=0)
+            c.setFont("Helvetica-Bold", 8)
+            c.setFillColor(colors.white)
+            c.drawString(margem + 0.35 * cm, cy + 0.11 * cm, titulo.upper())
+            c.setStrokeColor(colors.HexColor(BORDER))
+            c.setLineWidth(0.5)
+            c.line(margem + pill_w + 0.25 * cm, cy + 0.22 * cm, W - margem, cy + 0.22 * cm)
+            return cy - 0.85 * cm
+
+        def _campo(cy: float, label: str, valor: str, shade: bool) -> float:
+            linhas_v = quebrar_texto(str(valor), limite=42)
+            rh = max(ROW_H, 0.44 * cm + max(0, len(linhas_v) - 1) * LINE_EXTRA + 0.20 * cm)
             if shade:
                 c.setFillColor(colors.HexColor("#f0f4f8"))
-                c.rect(ox, cy - rh + 0.08 * cm, col_w, rh, fill=1, stroke=0)
+                c.rect(margem, cy - rh + 0.08 * cm, W - 2 * margem, rh, fill=1, stroke=0)
             c.setFont("Helvetica-Bold", 11)
             c.setFillColor(colors.HexColor(PRIMARY))
-            c.drawString(ox + 0.35 * cm, cy - 0.52 * cm, label.upper())
+            c.drawString(margem + 0.35 * cm, cy - 0.52 * cm, label.upper())
             c.setFont("Helvetica", 11.5)
             c.setFillColor(colors.HexColor("#1e293b"))
-            c.drawString(ox + 3.2 * cm, cy - 0.52 * cm, str(valor))
+            for j, lv in enumerate(linhas_v):
+                c.drawString(VAL_X, cy - 0.52 * cm - j * LINE_EXTRA, lv)
+            c.setStrokeColor(colors.HexColor(BORDER))
+            c.setLineWidth(0.35)
+            c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
+            return cy - rh
+
+        def _campo_2col(cy: float, pares: list[tuple]) -> float:
+            rh = ROW_H
+            col_w = (W - 2 * margem) / 2
+            for i, (label, valor, shade) in enumerate(pares):
+                ox = margem + i * col_w
+                if shade:
+                    c.setFillColor(colors.HexColor("#f0f4f8"))
+                    c.rect(ox, cy - rh + 0.08 * cm, col_w, rh, fill=1, stroke=0)
+                c.setFont("Helvetica-Bold", 11)
+                c.setFillColor(colors.HexColor(PRIMARY))
+                c.drawString(ox + 0.35 * cm, cy - 0.52 * cm, label.upper())
+                c.setFont("Helvetica", 11.5)
+                c.setFillColor(colors.HexColor("#1e293b"))
+                c.drawString(ox + 3.2 * cm, cy - 0.52 * cm, str(valor))
+            c.setStrokeColor(colors.HexColor(BORDER))
+            c.setLineWidth(0.35)
+            c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
+            return cy - rh
+
+        # — Bloco 1: Dados do Plantão —
+        y = _secao_titulo(y, "Dados do Plantão")
+        bloco1_top = y + 0.85 * cm
+        y = _campo(y, "Médico",  nome,     True)
+        y = _campo(y, "CRM",     crm,      False)
+        y = _campo(y, "Setor",   setor,    True)
+        y = _campo_2col(y, [("Data",    data_fmt,  False), ("Duração", horas_dur, False)])
+        y = _campo_2col(y, [("Entrada", hora_ent,  True),  ("Saída",   hora_sai,  True)])
+        bloco1_bot = y
+
+        c.setFillColor(colors.HexColor("#f8fafb"))
+        c.roundRect(margem, bloco1_bot, W - 2 * margem, bloco1_top - bloco1_bot, 8, fill=1, stroke=0)
+        c.setStrokeColor(colors.HexColor("#d0d7de"))
+        c.setLineWidth(0.8)
+        c.roundRect(margem, bloco1_bot, W - 2 * margem, bloco1_top - bloco1_bot, 8, stroke=1, fill=0)
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.roundRect(margem, bloco1_bot + 0.15 * cm, 0.25 * cm, bloco1_top - bloco1_bot - 0.3 * cm, 3, fill=1, stroke=0)
+
+        y_redraw = bloco1_top - 0.85 * cm
+        y_redraw = _campo(y_redraw, "Médico",  nome,     True)
+        y_redraw = _campo(y_redraw, "CRM",     crm,      False)
+        y_redraw = _campo(y_redraw, "Setor",   setor,    True)
+        y_redraw = _campo_2col(y_redraw, [("Data",    data_fmt,  False), ("Duração", horas_dur, False)])
+        y_redraw = _campo_2col(y_redraw, [("Entrada", hora_ent,  True),  ("Saída",   hora_sai,  True)])
+
+        # — Bloco 2: Justificativa —
+        y -= 1.25 * cm
+        y = _nova_pagina(c, W, H, margem, y, min_y + 3.0 * cm)
+        y = _secao_titulo(y, "Justificativa")
+        linhas_mot = quebrar_texto(motivo.strip(), limite=78)
+        line_h_mot = 19
+        pad_top    = 26
+        pad_bot    = 22
+        box_h      = len(linhas_mot) * line_h_mot + pad_top + pad_bot
+        y = _nova_pagina(c, W, H, margem, y, min_y + box_h / 28.35 + 0.5 * cm)
+
+        c.setFillColor(colors.HexColor("#fafbfc"))
         c.setStrokeColor(colors.HexColor(BORDER))
-        c.setLineWidth(0.35)
-        c.line(margem, cy - rh + 0.08 * cm, W - margem, cy - rh + 0.08 * cm)
-        return cy - rh
+        c.setLineWidth(0.8)
+        c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 6, stroke=1, fill=1)
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.roundRect(margem, y - box_h, 0.22 * cm, box_h, 3, fill=1, stroke=0)
+        texto_obj = c.beginText(margem + 0.52 * cm, y - pad_top)
+        texto_obj.setFont("Helvetica", 12)
+        texto_obj.setLeading(line_h_mot)
+        texto_obj.setFillColor(colors.HexColor("#1e293b"))
+        for ln in linhas_mot:
+            texto_obj.textLine(ln)
+        c.drawText(texto_obj)
+        y -= box_h
 
-    # — Bloco 1: Dados do Plantão —
-    y = _secao_titulo(y, "Dados do Plantão")
-    bloco1_top = y + 0.85 * cm
-    y = _campo(y, "Médico",  nome,     True)
-    y = _campo(y, "CRM",     crm,      False)
-    y = _campo(y, "Setor",   setor,    True)
-    y = _campo_2col(y, [("Data",    data_fmt,  False), ("Duração", horas_dur, False)])
-    y = _campo_2col(y, [("Entrada", hora_ent,  True),  ("Saída",   hora_sai,  True)])
-    bloco1_bot = y
+        # — Bloco 3: Assinatura —
+        y -= 1.35 * cm
+        y = _nova_pagina(c, W, H, margem, y, min_y + 3.5 * cm)
+        y = _secao_titulo(y, "Assinatura do Médico")
+        sig_h = 3.05 * cm
+        sig_w = W - 2 * margem
 
-    c.setFillColor(colors.HexColor("#f8fafb"))
-    c.roundRect(margem, bloco1_bot, W - 2 * margem, bloco1_top - bloco1_bot, 8, fill=1, stroke=0)
-    c.setStrokeColor(colors.HexColor("#d0d7de"))
-    c.setLineWidth(0.8)
-    c.roundRect(margem, bloco1_bot, W - 2 * margem, bloco1_top - bloco1_bot, 8, stroke=1, fill=0)
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.roundRect(margem, bloco1_bot + 0.15 * cm, 0.25 * cm, bloco1_top - bloco1_bot - 0.3 * cm, 3, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor("#fafcfd"))
+        c.setStrokeColor(colors.HexColor("#d0d7de"))
+        c.setLineWidth(0.8)
+        c.roundRect(margem, y - sig_h, sig_w, sig_h, 10, stroke=1, fill=1)
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.roundRect(margem, y - sig_h + 0.25 * cm, 0.25 * cm, sig_h - 0.5 * cm, 3, fill=1, stroke=0)
 
-    y_redraw = bloco1_top - 0.85 * cm
-    y_redraw = _campo(y_redraw, "Médico",  nome,     True)
-    y_redraw = _campo(y_redraw, "CRM",     crm,      False)
-    y_redraw = _campo(y_redraw, "Setor",   setor,    True)
-    y_redraw = _campo_2col(y_redraw, [("Data",    data_fmt,  False), ("Duração", horas_dur, False)])
-    y_redraw = _campo_2col(y_redraw, [("Entrada", hora_ent,  True),  ("Saída",   hora_sai,  True)])
+        c.setFont("Helvetica-Bold", 13)
+        c.setFillColor(colors.HexColor(PRIMARY))
+        c.drawCentredString(cx, y - 0.78 * cm, assinatura.upper())
+        line_w = 3.2 * cm
+        c.setStrokeColor(colors.HexColor(LOGO_COLOR))
+        c.setLineWidth(1.2)
+        c.line(cx - line_w, y - 1.08 * cm, cx + line_w, y - 1.08 * cm)
+        c.setFont("Helvetica", 10.5)
+        c.setFillColor(colors.HexColor(MUTED))
+        c.drawCentredString(cx, y - 1.48 * cm, f"CRM {crm.upper()}  ·  {setor}")
+        c.setStrokeColor(colors.HexColor(BORDER))
+        c.setLineWidth(0.4)
+        c.line(cx - 4.0 * cm, y - 1.88 * cm, cx + 4.0 * cm, y - 1.88 * cm)
+        horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
+        c.setFont("Helvetica-Oblique", 9.5)
+        c.setFillColor(colors.HexColor(MUTED))
+        c.drawCentredString(cx, y - 2.38 * cm, f"Assinado eletronicamente em {horario_ass}")
+        c.setFillColor(colors.HexColor(LOGO_COLOR))
+        c.circle(cx - 3.8 * cm, y - 2.32 * cm, 0.12 * cm, fill=1, stroke=0)
+        y -= sig_h
 
-    # — Bloco 2: Justificativa —
-    y -= 1.25 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 3.0 * cm)
-    y = _secao_titulo(y, "Justificativa")
-    linhas_mot = quebrar_texto(motivo.strip(), limite=78)
-    line_h_mot = 19
-    pad_top    = 26
-    pad_bot    = 22
-    box_h      = len(linhas_mot) * line_h_mot + pad_top + pad_bot
-    y = _nova_pagina(c, W, H, margem, y, min_y + box_h / 28.35 + 0.5 * cm)
+        # — Rodapé —
+        _rodape_pdf(c, W, H)
+        c.save()
+        buffer.seek(0)
 
-    c.setFillColor(colors.HexColor("#fafbfc"))
-    c.setStrokeColor(colors.HexColor(BORDER))
-    c.setLineWidth(0.8)
-    c.roundRect(margem, y - box_h, W - 2 * margem, box_h, 6, stroke=1, fill=1)
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.roundRect(margem, y - box_h, 0.22 * cm, box_h, 3, fill=1, stroke=0)
-    texto_obj = c.beginText(margem + 0.52 * cm, y - pad_top)
-    texto_obj.setFont("Helvetica", 12)
-    texto_obj.setLeading(line_h_mot)
-    texto_obj.setFillColor(colors.HexColor("#1e293b"))
-    for ln in linhas_mot:
-        texto_obj.textLine(ln)
-    c.drawText(texto_obj)
-    y -= box_h
+        # ── 8. Upload Google Drive + registro na planilha ─────────
+        arquivo_nome = nome_arquivo_seguro(nome, data_fmt)
+        pdf_bytes    = buffer.getvalue()
 
-    # — Bloco 3: Assinatura —
-    y -= 1.35 * cm
-    y = _nova_pagina(c, W, H, margem, y, min_y + 3.5 * cm)
-    y = _secao_titulo(y, "Assinatura do Médico")
-    sig_h = 3.05 * cm
-    sig_w = W - 2 * margem
+        st.write("☁️ Enviando PDF para o Google Drive e registrando na planilha...")
 
-    c.setFillColor(colors.HexColor("#fafcfd"))
-    c.setStrokeColor(colors.HexColor("#d0d7de"))
-    c.setLineWidth(0.8)
-    c.roundRect(margem, y - sig_h, sig_w, sig_h, 10, stroke=1, fill=1)
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.roundRect(margem, y - sig_h + 0.25 * cm, 0.25 * cm, sig_h - 0.5 * cm, 3, fill=1, stroke=0)
-
-    c.setFont("Helvetica-Bold", 13)
-    c.setFillColor(colors.HexColor(PRIMARY))
-    c.drawCentredString(cx, y - 0.78 * cm, assinatura.upper())
-    line_w = 3.2 * cm
-    c.setStrokeColor(colors.HexColor(LOGO_COLOR))
-    c.setLineWidth(1.2)
-    c.line(cx - line_w, y - 1.08 * cm, cx + line_w, y - 1.08 * cm)
-    c.setFont("Helvetica", 10.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 1.48 * cm, f"CRM {crm.upper()}  ·  {setor}")
-    c.setStrokeColor(colors.HexColor(BORDER))
-    c.setLineWidth(0.4)
-    c.line(cx - 4.0 * cm, y - 1.88 * cm, cx + 4.0 * cm, y - 1.88 * cm)
-    horario_ass = datetime.now(_BRT).strftime("%d/%m/%Y  %H:%M")
-    c.setFont("Helvetica-Oblique", 9.5)
-    c.setFillColor(colors.HexColor(MUTED))
-    c.drawCentredString(cx, y - 2.38 * cm, f"Assinado eletronicamente em {horario_ass}")
-    c.setFillColor(colors.HexColor(LOGO_COLOR))
-    c.circle(cx - 3.8 * cm, y - 2.32 * cm, 0.12 * cm, fill=1, stroke=0)
-    y -= sig_h
-
-    # — Rodapé —
-    _rodape_pdf(c, W, H)
-    c.save()
-    buffer.seek(0)
-
-    # ── 8. Upload Google Drive + registro na planilha ─────────────
-    arquivo_nome = nome_arquivo_seguro(nome, data_fmt)
-    pdf_bytes    = buffer.getvalue()
-
-    try:
-        with st.spinner("Enviando PDF para o Google Drive e registrando na planilha..."):
+        try:
             resultado = enviar_para_google(
                 pdf_buffer=BytesIO(pdf_bytes),
                 nome_arquivo=arquivo_nome,
@@ -1156,37 +1204,60 @@ if enviar:
                 },
             )
 
-        if resultado.get("status") == "ok":
-            # ── Marca a chave como enviada na sessão ─────────────
-            st.session_state.chaves_enviadas.add(chave)
-            # ── Salva resumo para o card de sucesso ──────────────
-            # Usa o setor confirmado pelo Apps Script (pasta onde de fato
-            # foi salvo), quando disponível — evita qualquer divergência
-            # de exibição entre o que foi selecionado e o que foi gravado.
-            setor_confirmado = resultado.get("setor_salvo", setor)
-            st.session_state.ultimo_protocolo = protocolo
-            st.session_state.ultimo_resumo    = {
-                "nome":       nome,
-                "crm":        crm.upper(),
-                "setor":      setor_confirmado,
-                "data_fmt":   data_fmt,
-                "hora_ent":   hora_ent,
-                "hora_sai":   hora_sai,
-                "duracao":    horas_dur,
-                "protocolo":  protocolo,
-                "enviado_em": datetime.now(_BRT).strftime("%d/%m/%Y às %H:%M"),
-            }
-            st.session_state.ultimo_pdf_bytes    = pdf_bytes
-            st.session_state.ultimo_arquivo_nome = arquivo_nome
-            st.session_state.enviado             = True
-            st.rerun()  # Mostra o card de sucesso
+            if resultado.get("status") == "ok":
+                status.update(label="Justificativa enviada com sucesso!", state="complete")
 
-        else:
-            st.warning(
-                f"O servidor recusou o envio: {resultado.get('message', 'Sem detalhes')}\n\n"
-                "Você ainda pode baixar o PDF abaixo e reenviar depois."
+                # ── Marca a chave como enviada na sessão ─────────────
+                st.session_state.chaves_enviadas.add(chave)
+                # ── Salva resumo para o card de sucesso ──────────────
+                # Usa o setor confirmado pelo Apps Script (pasta onde de fato
+                # foi salvo), quando disponível — evita qualquer divergência
+                # de exibição entre o que foi selecionado e o que foi gravado.
+                setor_confirmado = resultado.get("setor_salvo", setor)
+                st.session_state.ultimo_protocolo = protocolo
+                st.session_state.ultimo_resumo    = {
+                    "nome":       nome,
+                    "crm":        crm.upper(),
+                    "setor":      setor_confirmado,
+                    "data_fmt":   data_fmt,
+                    "hora_ent":   hora_ent,
+                    "hora_sai":   hora_sai,
+                    "duracao":    horas_dur,
+                    "protocolo":  protocolo,
+                    "enviado_em": datetime.now(_BRT).strftime("%d/%m/%Y às %H:%M"),
+                }
+                st.session_state.ultimo_pdf_bytes    = pdf_bytes
+                st.session_state.ultimo_arquivo_nome = arquivo_nome
+                st.session_state.enviado             = True
+                _cancelar_processamento()
+                st.rerun()  # Mostra o card de sucesso
+
+            else:
+                status.update(label="Servidor recusou o envio", state="error")
+                _cancelar_processamento()
+                st.warning(
+                    f"O servidor recusou o envio: {resultado.get('message', 'Sem detalhes')}\n\n"
+                    "Você ainda pode baixar o PDF abaixo e reenviar depois."
+                )
+                st.download_button(
+                    label="⬇  Baixar PDF",
+                    data=pdf_bytes,
+                    file_name=arquivo_nome,
+                    mime="application/pdf",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+        except RespostaInvalidaError as e:
+            # Erro específico: o Apps Script não devolveu JSON — normalmente
+            # sinal de implantação mal configurada (permissão "Quem pode acessar").
+            status.update(label="Resposta inesperada do servidor", state="error")
+            _cancelar_processamento()
+            st.error(
+                f"O PDF foi gerado, mas a resposta do servidor foi inesperada:\n\n{e}\n\n"
+                "Verifique se a implantação do Apps Script está configurada como "
+                "\"Executar como: Eu\" e \"Quem pode acessar: Qualquer pessoa\"."
             )
-            # Download disponível mesmo com falha no servidor
             st.download_button(
                 label="⬇  Baixar PDF",
                 data=pdf_bytes,
@@ -1196,49 +1267,36 @@ if enviar:
                 use_container_width=True,
             )
 
-    except RespostaInvalidaError as e:
-        # Erro específico: o Apps Script não devolveu JSON — normalmente
-        # sinal de implantação mal configurada (permissão "Quem pode acessar").
-        st.error(
-            f"O PDF foi gerado, mas a resposta do servidor foi inesperada:\n\n{e}\n\n"
-            "Verifique se a implantação do Apps Script está configurada como "
-            "\"Executar como: Eu\" e \"Quem pode acessar: Qualquer pessoa\"."
-        )
-        st.download_button(
-            label="⬇  Baixar PDF",
-            data=pdf_bytes,
-            file_name=arquivo_nome,
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True,
-        )
+        except http_requests.exceptions.Timeout:
+            status.update(label="Tempo de resposta esgotado", state="error")
+            _cancelar_processamento()
+            st.warning(
+                "O PDF foi gerado, mas o servidor demorou demais para responder "
+                "(timeout). O envio pode ainda ter sido concluído do lado do Google — "
+                "confira a planilha antes de reenviar, para evitar duplicidade.\n\n"
+                "Você também pode baixar o PDF abaixo."
+            )
+            st.download_button(
+                label="⬇  Baixar PDF",
+                data=pdf_bytes,
+                file_name=arquivo_nome,
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
 
-    except http_requests.exceptions.Timeout:
-        st.warning(
-            "O PDF foi gerado, mas o servidor demorou demais para responder "
-            "(timeout). O envio pode ainda ter sido concluído do lado do Google — "
-            "confira a planilha antes de reenviar, para evitar duplicidade.\n\n"
-            "Você também pode baixar o PDF abaixo."
-        )
-        st.download_button(
-            label="⬇  Baixar PDF",
-            data=pdf_bytes,
-            file_name=arquivo_nome,
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True,
-        )
-
-    except Exception as e:
-        st.warning(
-            f"O PDF foi gerado, mas houve um erro ao enviá-lo ao servidor: {e}\n\n"
-            "Você ainda pode baixar o PDF abaixo."
-        )
-        st.download_button(
-            label="⬇  Baixar PDF",
-            data=pdf_bytes,
-            file_name=arquivo_nome,
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True,
-        )
+        except Exception as e:
+            status.update(label="Falha no envio", state="error")
+            _cancelar_processamento()
+            st.warning(
+                f"O PDF foi gerado, mas houve um erro ao enviá-lo ao servidor: {e}\n\n"
+                "Você ainda pode baixar o PDF abaixo."
+            )
+            st.download_button(
+                label="⬇  Baixar PDF",
+                data=pdf_bytes,
+                file_name=arquivo_nome,
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
