@@ -586,11 +586,33 @@ def _rodape_pdf(c, W, H):
 # ==================================================
 # GOOGLE APPS SCRIPT
 # ==================================================
+class RespostaInvalidaError(Exception):
+    """Levantado quando o Apps Script responde algo que não é o JSON esperado
+    (ex.: página HTML de login/permissão, timeout do proxy, erro 500 etc.)."""
+    pass
+
+
+def _parse_json_resposta(resp: http_requests.Response) -> dict:
+    """Tenta decodificar a resposta como JSON. Se falhar, gera um erro com
+    um preview do conteúdo recebido — essencial para diagnosticar problemas
+    de permissão/implantação do Apps Script (que normalmente retornam HTML)."""
+    try:
+        return resp.json()
+    except ValueError:
+        preview = (resp.text or "")[:300].strip().replace("\n", " ")
+        raise RespostaInvalidaError(
+            f"O servidor respondeu HTTP {resp.status_code}, mas o conteúdo não é "
+            f"JSON válido (pode ser uma página de login/erro do Google). "
+            f"Início da resposta: “{preview}”"
+        )
+
+
 def verificar_duplicata_remota(crm: str, data_fmt: str, hora_ent: str, hora_sai: str) -> bool:
     """
     Consulta o Apps Script para saber se já existe um registro
     com o mesmo CRM + data + horários na planilha.
-    Retorna True se for duplicata.
+    Retorna True se for duplicata. Nunca bloqueia o fluxo em caso de falha
+    remota — mas guarda o motivo em session_state para eventual depuração.
     """
     try:
         apps_script_url = st.secrets["apps_script"]["url"]
@@ -606,10 +628,12 @@ def verificar_duplicata_remota(crm: str, data_fmt: str, hora_ent: str, hora_sai:
             timeout=15,
         )
         resp.raise_for_status()
-        dados = resp.json()
+        dados = _parse_json_resposta(resp)
         return dados.get("duplicata", False)
-    except Exception:
-        # Se a verificação remota falhar, não bloqueia o envio
+    except Exception as e:
+        # Se a verificação remota falhar, não bloqueia o envio — apenas registra
+        # o motivo para facilitar diagnóstico posterior (visível só em debug).
+        st.session_state["_ultimo_erro_dedup_remoto"] = str(e)
         return False
 
 
@@ -619,6 +643,8 @@ def enviar_para_google(pdf_buffer: BytesIO, nome_arquivo: str, dados: dict) -> d
     O script salva o PDF no Drive (subpasta por setor) e
     registra os dados na planilha.
     Retorna o JSON de resposta do Apps Script.
+    Levanta RespostaInvalidaError se a resposta não for JSON (ex.: página de
+    erro/login do Google por implantação mal configurada).
     """
     apps_script_url = st.secrets["apps_script"]["url"]
     pdf_buffer.seek(0)
@@ -646,7 +672,7 @@ def enviar_para_google(pdf_buffer: BytesIO, nome_arquivo: str, dados: dict) -> d
         timeout=60,
     )
     resp.raise_for_status()
-    return resp.json()
+    return _parse_json_resposta(resp)
 
 
 # ==================================================
@@ -1134,11 +1160,15 @@ if enviar:
             # ── Marca a chave como enviada na sessão ─────────────
             st.session_state.chaves_enviadas.add(chave)
             # ── Salva resumo para o card de sucesso ──────────────
+            # Usa o setor confirmado pelo Apps Script (pasta onde de fato
+            # foi salvo), quando disponível — evita qualquer divergência
+            # de exibição entre o que foi selecionado e o que foi gravado.
+            setor_confirmado = resultado.get("setor_salvo", setor)
             st.session_state.ultimo_protocolo = protocolo
             st.session_state.ultimo_resumo    = {
                 "nome":       nome,
                 "crm":        crm.upper(),
-                "setor":      setor,
+                "setor":      setor_confirmado,
                 "data_fmt":   data_fmt,
                 "hora_ent":   hora_ent,
                 "hora_sai":   hora_sai,
@@ -1153,8 +1183,8 @@ if enviar:
 
         else:
             st.warning(
-                f"Resposta inesperada do servidor: {resultado.get('message', 'Sem detalhes')}\n\n"
-                "Você ainda pode baixar o PDF abaixo."
+                f"O servidor recusou o envio: {resultado.get('message', 'Sem detalhes')}\n\n"
+                "Você ainda pode baixar o PDF abaixo e reenviar depois."
             )
             # Download disponível mesmo com falha no servidor
             st.download_button(
@@ -1165,6 +1195,39 @@ if enviar:
                 type="primary",
                 use_container_width=True,
             )
+
+    except RespostaInvalidaError as e:
+        # Erro específico: o Apps Script não devolveu JSON — normalmente
+        # sinal de implantação mal configurada (permissão "Quem pode acessar").
+        st.error(
+            f"O PDF foi gerado, mas a resposta do servidor foi inesperada:\n\n{e}\n\n"
+            "Verifique se a implantação do Apps Script está configurada como "
+            "\"Executar como: Eu\" e \"Quem pode acessar: Qualquer pessoa\"."
+        )
+        st.download_button(
+            label="⬇  Baixar PDF",
+            data=pdf_bytes,
+            file_name=arquivo_nome,
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
+
+    except http_requests.exceptions.Timeout:
+        st.warning(
+            "O PDF foi gerado, mas o servidor demorou demais para responder "
+            "(timeout). O envio pode ainda ter sido concluído do lado do Google — "
+            "confira a planilha antes de reenviar, para evitar duplicidade.\n\n"
+            "Você também pode baixar o PDF abaixo."
+        )
+        st.download_button(
+            label="⬇  Baixar PDF",
+            data=pdf_bytes,
+            file_name=arquivo_nome,
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
 
     except Exception as e:
         st.warning(
